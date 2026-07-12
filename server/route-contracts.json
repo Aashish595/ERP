@@ -1,0 +1,1536 @@
+{
+  "total": 255,
+  "contracts": [
+    {
+      "module": "academic",
+      "method": "GET",
+      "path": "/academic-sessions",
+      "handler": "list_sessions"
+    },
+    {
+      "module": "academic",
+      "method": "POST",
+      "path": "/academic-sessions",
+      "handler": "create_session"
+    },
+    {
+      "module": "academic",
+      "method": "PUT",
+      "path": "/academic-sessions/{item_id}",
+      "handler": "update_session"
+    },
+    {
+      "module": "academic",
+      "method": "DELETE",
+      "path": "/academic-sessions/{item_id}",
+      "handler": "delete_session"
+    },
+    {
+      "module": "academic",
+      "method": "GET",
+      "path": "/departments",
+      "handler": "list_departments"
+    },
+    {
+      "module": "academic",
+      "method": "POST",
+      "path": "/departments",
+      "handler": "create_department"
+    },
+    {
+      "module": "academic",
+      "method": "PUT",
+      "path": "/departments/{item_id}",
+      "handler": "update_department"
+    },
+    {
+      "module": "academic",
+      "method": "DELETE",
+      "path": "/departments/{item_id}",
+      "handler": "delete_department"
+    },
+    {
+      "module": "academic",
+      "method": "GET",
+      "path": "/classes",
+      "handler": "list_classes"
+    },
+    {
+      "module": "academic",
+      "method": "POST",
+      "path": "/classes",
+      "handler": "create_class"
+    },
+    {
+      "module": "academic",
+      "method": "PUT",
+      "path": "/classes/{item_id}",
+      "handler": "update_class"
+    },
+    {
+      "module": "academic",
+      "method": "DELETE",
+      "path": "/classes/{item_id}",
+      "handler": "delete_class"
+    },
+    {
+      "module": "academic",
+      "method": "GET",
+      "path": "/sections",
+      "handler": "list_sections"
+    },
+    {
+      "module": "academic",
+      "method": "POST",
+      "path": "/sections",
+      "handler": "create_section"
+    },
+    {
+      "module": "academic",
+      "method": "PUT",
+      "path": "/sections/{item_id}",
+      "handler": "update_section"
+    },
+    {
+      "module": "academic",
+      "method": "DELETE",
+      "path": "/sections/{item_id}",
+      "handler": "delete_section"
+    },
+    {
+      "module": "academic",
+      "method": "GET",
+      "path": "/subjects",
+      "handler": "list_subjects"
+    },
+    {
+      "module": "academic",
+      "method": "POST",
+      "path": "/subjects",
+      "handler": "create_subject"
+    },
+    {
+      "module": "academic",
+      "method": "PUT",
+      "path": "/subjects/{item_id}",
+      "handler": "update_subject"
+    },
+    {
+      "module": "academic",
+      "method": "DELETE",
+      "path": "/subjects/{item_id}",
+      "handler": "delete_subject"
+    },
+    {
+      "module": "assignments",
+      "method": "POST",
+      "path": "/assignments/{course_id}",
+      "handler": "create_assignment"
+    },
+    {
+      "module": "assignments",
+      "method": "GET",
+      "path": "/assignments/course/{course_id}",
+      "handler": "get_course_assignments"
+    },
+    {
+      "module": "assignments",
+      "method": "PUT",
+      "path": "/assignments/{assignment_id}",
+      "handler": "update_assignment"
+    },
+    {
+      "module": "assignments",
+      "method": "DELETE",
+      "path": "/assignments/{assignment_id}",
+      "handler": "delete_assignment"
+    },
+    {
+      "module": "assignments",
+      "method": "POST",
+      "path": "/assignments/{assignment_id}/submit",
+      "handler": "submit_assignment"
+    },
+    {
+      "module": "assignments",
+      "method": "GET",
+      "path": "/assignments/{assignment_id}/submissions",
+      "handler": "get_submissions"
+    },
+    {
+      "module": "assignments",
+      "method": "PUT",
+      "path": "/assignments/submissions/{submission_id}/grade",
+      "handler": "grade_submission"
+    },
+    {
+      "module": "assignments",
+      "method": "GET",
+      "path": "/assignments/{assignment_id}/my-submission",
+      "handler": "get_my_submission"
+    },
+    {
+      "module": "assignments",
+      "method": "POST",
+      "path": "/assignments/api/course/{course_id}/lessons/{lesson_id}/quiz",
+      "handler": "generate_lesson_quiz"
+    },
+    {
+      "module": "attendance",
+      "method": "GET",
+      "path": "/attendance/my-classes",
+      "handler": "teacher_allowed_classes"
+    },
+    {
+      "module": "attendance",
+      "method": "POST",
+      "path": "/attendance/bulk",
+      "handler": "bulk_mark_attendance"
+    },
+    {
+      "module": "attendance",
+      "method": "GET",
+      "path": "/attendance/sheet",
+      "handler": "get_attendance_sheet"
+    },
+    {
+      "module": "attendance",
+      "method": "PATCH",
+      "path": "/attendance/{attendance_id}",
+      "handler": "update_attendance"
+    },
+    {
+      "module": "attendance",
+      "method": "GET",
+      "path": "/attendance/summary",
+      "handler": "attendance_summary"
+    },
+    {
+      "module": "attendance",
+      "method": "GET",
+      "path": "/attendance/by-date",
+      "handler": "attendance_by_date"
+    },
+    {
+      "module": "attendance",
+      "method": "GET",
+      "path": "/attendance/my",
+      "handler": "my_attendance"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/register-school",
+      "handler": "request_school_registration_otp"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/verify-school-registration",
+      "handler": "verify_school_registration"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/login",
+      "handler": "login"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/refresh",
+      "handler": "refresh_access_token"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/logout",
+      "handler": "logout"
+    },
+    {
+      "module": "auth",
+      "method": "GET",
+      "path": "/auth/me",
+      "handler": "me"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/change-password",
+      "handler": "change_password"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/forgot-password",
+      "handler": "forgot_password"
+    },
+    {
+      "module": "auth",
+      "method": "POST",
+      "path": "/auth/reset-password",
+      "handler": "reset_password"
+    },
+    {
+      "module": "chats",
+      "method": "POST",
+      "path": "/sessions/share/email",
+      "handler": "share_chat_answer_email"
+    },
+    {
+      "module": "chats",
+      "method": "POST",
+      "path": "/sessions/share/telegram",
+      "handler": "share_chat_answer_telegram"
+    },
+    {
+      "module": "chats",
+      "method": "POST",
+      "path": "/sessions",
+      "handler": "create_session"
+    },
+    {
+      "module": "chats",
+      "method": "GET",
+      "path": "/sessions",
+      "handler": "get_sessions"
+    },
+    {
+      "module": "chats",
+      "method": "DELETE",
+      "path": "/sessions/{session_id}",
+      "handler": "delete_session"
+    },
+    {
+      "module": "chats",
+      "method": "GET",
+      "path": "/sessions/{session_id}/messages",
+      "handler": "get_session_messages"
+    },
+    {
+      "module": "chats",
+      "method": "POST",
+      "path": "/sessions/{session_id}/messages",
+      "handler": "send_message_stream"
+    },
+    {
+      "module": "communication",
+      "method": "POST",
+      "path": "/communication/announcements",
+      "handler": "create_announcement"
+    },
+    {
+      "module": "communication",
+      "method": "GET",
+      "path": "/communication/announcements",
+      "handler": "list_announcements"
+    },
+    {
+      "module": "communication",
+      "method": "PATCH",
+      "path": "/communication/announcements/{announcement_id}",
+      "handler": "update_announcement"
+    },
+    {
+      "module": "communication",
+      "method": "DELETE",
+      "path": "/communication/announcements/{announcement_id}",
+      "handler": "delete_announcement"
+    },
+    {
+      "module": "communication",
+      "method": "POST",
+      "path": "/communication/events",
+      "handler": "create_event"
+    },
+    {
+      "module": "communication",
+      "method": "GET",
+      "path": "/communication/events",
+      "handler": "list_events"
+    },
+    {
+      "module": "communication",
+      "method": "PATCH",
+      "path": "/communication/events/{event_id}",
+      "handler": "update_event"
+    },
+    {
+      "module": "communication",
+      "method": "DELETE",
+      "path": "/communication/events/{event_id}",
+      "handler": "delete_event"
+    },
+    {
+      "module": "communication",
+      "method": "POST",
+      "path": "/communication/complaints",
+      "handler": "create_complaint"
+    },
+    {
+      "module": "communication",
+      "method": "GET",
+      "path": "/communication/complaints",
+      "handler": "list_complaints"
+    },
+    {
+      "module": "communication",
+      "method": "PATCH",
+      "path": "/communication/complaints/{complaint_id}",
+      "handler": "update_complaint"
+    },
+    {
+      "module": "communication",
+      "method": "POST",
+      "path": "/communication/notifications",
+      "handler": "create_notification"
+    },
+    {
+      "module": "communication",
+      "method": "GET",
+      "path": "/communication/notifications/unread-count",
+      "handler": "unread_notifications_count"
+    },
+    {
+      "module": "communication",
+      "method": "GET",
+      "path": "/communication/notifications",
+      "handler": "list_notifications"
+    },
+    {
+      "module": "communication",
+      "method": "POST",
+      "path": "/communication/notifications/{notification_id}/read",
+      "handler": "mark_notification_read"
+    },
+    {
+      "module": "communication",
+      "method": "POST",
+      "path": "/communication/notifications/read-all",
+      "handler": "mark_all_notifications_read"
+    },
+    {
+      "module": "communication",
+      "method": "GET",
+      "path": "/communication/overview",
+      "handler": "communication_overview"
+    },
+    {
+      "module": "courses",
+      "method": "GET",
+      "path": "/courses/meta",
+      "handler": "courses_meta"
+    },
+    {
+      "module": "courses",
+      "method": "GET",
+      "path": "/courses/student/my",
+      "handler": "list_my_student_courses"
+    },
+    {
+      "module": "courses",
+      "method": "GET",
+      "path": "/courses/parent/children",
+      "handler": "list_parent_child_courses"
+    },
+    {
+      "module": "courses",
+      "method": "GET",
+      "path": "/courses/",
+      "handler": "get_all_courses"
+    },
+    {
+      "module": "courses",
+      "method": "GET",
+      "path": "/courses/my-created",
+      "handler": "get_my_created_courses"
+    },
+    {
+      "module": "courses",
+      "method": "POST",
+      "path": "/courses/",
+      "handler": "create_course"
+    },
+    {
+      "module": "courses",
+      "method": "GET",
+      "path": "/courses/{course_id}",
+      "handler": "get_course"
+    },
+    {
+      "module": "courses",
+      "method": "PUT",
+      "path": "/courses/{course_id}",
+      "handler": "update_course"
+    },
+    {
+      "module": "courses",
+      "method": "DELETE",
+      "path": "/courses/{course_id}",
+      "handler": "delete_course"
+    },
+    {
+      "module": "courses",
+      "method": "POST",
+      "path": "/courses/{course_id}/sync-enrollments",
+      "handler": "sync_course_enrollments"
+    },
+    {
+      "module": "courses",
+      "method": "GET",
+      "path": "/courses/{course_id}/students",
+      "handler": "get_enrolled_students"
+    },
+    {
+      "module": "courses",
+      "method": "GET",
+      "path": "/courses/{course_id}/students/progress",
+      "handler": "get_course_students_progress_report"
+    },
+    {
+      "module": "curriculum",
+      "method": "POST",
+      "path": "/curriculum/generate",
+      "handler": "generate_curriculum"
+    },
+    {
+      "module": "curriculum",
+      "method": "POST",
+      "path": "/curriculum/approve",
+      "handler": "approve_curriculum"
+    },
+    {
+      "module": "dashboard",
+      "method": "GET",
+      "path": "/dashboard/overview",
+      "handler": "overview"
+    },
+    {
+      "module": "dashboard",
+      "method": "GET",
+      "path": "/dashboard/quick-search",
+      "handler": "quick_search"
+    },
+    {
+      "module": "enrollments",
+      "method": "POST",
+      "path": "/enrollments/{course_id}",
+      "handler": "enroll"
+    },
+    {
+      "module": "enrollments",
+      "method": "DELETE",
+      "path": "/enrollments/{course_id}",
+      "handler": "unenroll"
+    },
+    {
+      "module": "enrollments",
+      "method": "GET",
+      "path": "/enrollments/my",
+      "handler": "get_my_enrollments"
+    },
+    {
+      "module": "enrollments",
+      "method": "GET",
+      "path": "/enrollments/check/{course_id}",
+      "handler": "check_enrollment"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/meta",
+      "handler": "exam_meta"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams",
+      "handler": "list_exams"
+    },
+    {
+      "module": "exams",
+      "method": "POST",
+      "path": "/exams",
+      "handler": "create_exam"
+    },
+    {
+      "module": "exams",
+      "method": "PUT",
+      "path": "/exams/{exam_id}",
+      "handler": "update_exam"
+    },
+    {
+      "module": "exams",
+      "method": "DELETE",
+      "path": "/exams/{exam_id}",
+      "handler": "delete_exam"
+    },
+    {
+      "module": "exams",
+      "method": "POST",
+      "path": "/exams/{exam_id}/publish",
+      "handler": "publish_exam"
+    },
+    {
+      "module": "exams",
+      "method": "POST",
+      "path": "/exams/{exam_id}/unpublish",
+      "handler": "unpublish_exam"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/{exam_id}/subjects",
+      "handler": "list_exam_subjects"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/{exam_id}/timetable",
+      "handler": "exam_timetable"
+    },
+    {
+      "module": "exams",
+      "method": "POST",
+      "path": "/exams/{exam_id}/auto-schedule-timetable",
+      "handler": "auto_schedule_exam_timetable"
+    },
+    {
+      "module": "exams",
+      "method": "POST",
+      "path": "/exams/{exam_id}/subjects",
+      "handler": "create_exam_subject"
+    },
+    {
+      "module": "exams",
+      "method": "PUT",
+      "path": "/exams/{exam_id}/subjects/{exam_subject_id}",
+      "handler": "update_exam_subject"
+    },
+    {
+      "module": "exams",
+      "method": "DELETE",
+      "path": "/exams/{exam_id}/subjects/{exam_subject_id}",
+      "handler": "delete_exam_subject"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/{exam_id}/students",
+      "handler": "list_exam_students"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/{exam_id}/marks",
+      "handler": "list_exam_marks"
+    },
+    {
+      "module": "exams",
+      "method": "POST",
+      "path": "/exams/{exam_id}/marks/bulk",
+      "handler": "save_bulk_marks"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/{exam_id}/class-result",
+      "handler": "class_result"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/{exam_id}/subject-result/{exam_subject_id}",
+      "handler": "subject_result"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/my-timetable",
+      "handler": "my_exam_timetable"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/my-children-timetable",
+      "handler": "my_children_exam_timetable"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/my-report-cards",
+      "handler": "my_report_cards"
+    },
+    {
+      "module": "exams",
+      "method": "GET",
+      "path": "/exams/my-children-report-cards",
+      "handler": "my_children_report_cards"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/meta",
+      "handler": "fee_meta"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/dashboard",
+      "handler": "fee_dashboard"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/portal",
+      "handler": "fee_portal"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/categories",
+      "handler": "list_categories"
+    },
+    {
+      "module": "fees",
+      "method": "POST",
+      "path": "/fees/categories",
+      "handler": "create_category"
+    },
+    {
+      "module": "fees",
+      "method": "PUT",
+      "path": "/fees/categories/{category_id}",
+      "handler": "update_category"
+    },
+    {
+      "module": "fees",
+      "method": "DELETE",
+      "path": "/fees/categories/{category_id}",
+      "handler": "delete_category"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/structures",
+      "handler": "list_structures"
+    },
+    {
+      "module": "fees",
+      "method": "POST",
+      "path": "/fees/structures",
+      "handler": "create_structure"
+    },
+    {
+      "module": "fees",
+      "method": "PUT",
+      "path": "/fees/structures/{structure_id}",
+      "handler": "update_structure"
+    },
+    {
+      "module": "fees",
+      "method": "DELETE",
+      "path": "/fees/structures/{structure_id}",
+      "handler": "delete_structure"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/assignments",
+      "handler": "list_assignments"
+    },
+    {
+      "module": "fees",
+      "method": "POST",
+      "path": "/fees/assignments",
+      "handler": "create_assignment"
+    },
+    {
+      "module": "fees",
+      "method": "POST",
+      "path": "/fees/assignments/{assignment_id}/generate-records",
+      "handler": "generate_assignment_records"
+    },
+    {
+      "module": "fees",
+      "method": "PUT",
+      "path": "/fees/assignments/{assignment_id}",
+      "handler": "update_assignment"
+    },
+    {
+      "module": "fees",
+      "method": "DELETE",
+      "path": "/fees/assignments/{assignment_id}",
+      "handler": "delete_assignment"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/records",
+      "handler": "list_records"
+    },
+    {
+      "module": "fees",
+      "method": "POST",
+      "path": "/fees/records",
+      "handler": "create_record"
+    },
+    {
+      "module": "fees",
+      "method": "PUT",
+      "path": "/fees/records/{record_id}",
+      "handler": "update_record"
+    },
+    {
+      "module": "fees",
+      "method": "DELETE",
+      "path": "/fees/records/{record_id}",
+      "handler": "delete_record"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/payments",
+      "handler": "list_payments"
+    },
+    {
+      "module": "fees",
+      "method": "POST",
+      "path": "/fees/payments",
+      "handler": "create_payment"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/receipts/{payment_id}",
+      "handler": "get_receipt"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/daily-collection",
+      "handler": "daily_collection"
+    },
+    {
+      "module": "fees",
+      "method": "GET",
+      "path": "/fees/expenses",
+      "handler": "list_expenses"
+    },
+    {
+      "module": "fees",
+      "method": "POST",
+      "path": "/fees/expenses",
+      "handler": "create_expense"
+    },
+    {
+      "module": "fees",
+      "method": "PUT",
+      "path": "/fees/expenses/{expense_id}",
+      "handler": "update_expense"
+    },
+    {
+      "module": "fees",
+      "method": "DELETE",
+      "path": "/fees/expenses/{expense_id}",
+      "handler": "delete_expense"
+    },
+    {
+      "module": "fees",
+      "method": "POST",
+      "path": "/fees/razorpay/create-order",
+      "handler": "create_razorpay_order"
+    },
+    {
+      "module": "fees",
+      "method": "POST",
+      "path": "/fees/razorpay/verify-payment",
+      "handler": "verify_razorpay_payment"
+    },
+    {
+      "module": "homework",
+      "method": "GET",
+      "path": "/homework/meta",
+      "handler": "homework_meta"
+    },
+    {
+      "module": "homework",
+      "method": "GET",
+      "path": "/homework/assignments",
+      "handler": "list_assignments"
+    },
+    {
+      "module": "homework",
+      "method": "POST",
+      "path": "/homework/assignments",
+      "handler": "create_assignment"
+    },
+    {
+      "module": "homework",
+      "method": "PUT",
+      "path": "/homework/assignments/{assignment_id}",
+      "handler": "update_assignment"
+    },
+    {
+      "module": "homework",
+      "method": "DELETE",
+      "path": "/homework/assignments/{assignment_id}",
+      "handler": "delete_assignment"
+    },
+    {
+      "module": "homework",
+      "method": "GET",
+      "path": "/homework/assignments/{assignment_id}/submissions",
+      "handler": "list_assignment_submissions"
+    },
+    {
+      "module": "homework",
+      "method": "GET",
+      "path": "/homework/student/assignments",
+      "handler": "list_student_homework"
+    },
+    {
+      "module": "homework",
+      "method": "POST",
+      "path": "/homework/assignments/{assignment_id}/submit",
+      "handler": "submit_homework"
+    },
+    {
+      "module": "homework",
+      "method": "PATCH",
+      "path": "/homework/submissions/{submission_id}/check",
+      "handler": "check_submission"
+    },
+    {
+      "module": "homework",
+      "method": "GET",
+      "path": "/homework/parent/assignments",
+      "handler": "list_parent_homework"
+    },
+    {
+      "module": "lessons",
+      "method": "POST",
+      "path": "/lessons/{course_id}",
+      "handler": "create_lesson"
+    },
+    {
+      "module": "lessons",
+      "method": "GET",
+      "path": "/lessons/course/{course_id}",
+      "handler": "get_course_lessons"
+    },
+    {
+      "module": "lessons",
+      "method": "GET",
+      "path": "/lessons/{lesson_id}",
+      "handler": "get_lesson"
+    },
+    {
+      "module": "lessons",
+      "method": "PUT",
+      "path": "/lessons/{lesson_id}",
+      "handler": "update_lesson"
+    },
+    {
+      "module": "lessons",
+      "method": "DELETE",
+      "path": "/lessons/{lesson_id}",
+      "handler": "delete_lesson"
+    },
+    {
+      "module": "lessons",
+      "method": "GET",
+      "path": "/lessons/{lesson_id}/summary",
+      "handler": "get_lesson_summary"
+    },
+    {
+      "module": "lessons",
+      "method": "POST",
+      "path": "/lessons/api/course/{course_id}/lessons/{lesson_id}/quiz",
+      "handler": "generate_lesson_quiz"
+    },
+    {
+      "module": "library",
+      "method": "POST",
+      "path": "/library/books",
+      "handler": "add_book"
+    },
+    {
+      "module": "library",
+      "method": "GET",
+      "path": "/library/books",
+      "handler": "list_books"
+    },
+    {
+      "module": "library",
+      "method": "GET",
+      "path": "/library/books/{book_id}",
+      "handler": "get_book"
+    },
+    {
+      "module": "library",
+      "method": "PATCH",
+      "path": "/library/books/{book_id}",
+      "handler": "update_book"
+    },
+    {
+      "module": "library",
+      "method": "DELETE",
+      "path": "/library/books/{book_id}",
+      "handler": "delete_book"
+    },
+    {
+      "module": "library",
+      "method": "GET",
+      "path": "/library/categories",
+      "handler": "list_categories"
+    },
+    {
+      "module": "library",
+      "method": "POST",
+      "path": "/library/issues",
+      "handler": "issue_book"
+    },
+    {
+      "module": "library",
+      "method": "POST",
+      "path": "/library/issues/{issue_id}/return",
+      "handler": "return_book"
+    },
+    {
+      "module": "library",
+      "method": "POST",
+      "path": "/library/issues/{issue_id}/pay-fine",
+      "handler": "mark_fine_paid"
+    },
+    {
+      "module": "library",
+      "method": "GET",
+      "path": "/library/issues",
+      "handler": "list_issues"
+    },
+    {
+      "module": "library",
+      "method": "GET",
+      "path": "/library/issues/overdue",
+      "handler": "overdue_issues"
+    },
+    {
+      "module": "library",
+      "method": "GET",
+      "path": "/library/issues/my",
+      "handler": "my_issues"
+    },
+    {
+      "module": "library",
+      "method": "GET",
+      "path": "/library/issues/{issue_id}",
+      "handler": "get_issue"
+    },
+    {
+      "module": "library",
+      "method": "GET",
+      "path": "/library/stats",
+      "handler": "library_stats"
+    },
+    {
+      "module": "meetings",
+      "method": "GET",
+      "path": "/meetings/stats",
+      "handler": "meeting_stats"
+    },
+    {
+      "module": "meetings",
+      "method": "GET",
+      "path": "/meetings/active/class/{class_id}",
+      "handler": "get_active_class_meeting"
+    },
+    {
+      "module": "meetings",
+      "method": "GET",
+      "path": "/meetings/",
+      "handler": "list_meetings"
+    },
+    {
+      "module": "meetings",
+      "method": "POST",
+      "path": "/meetings/teacher/class",
+      "handler": "teacher_create_class_meeting"
+    },
+    {
+      "module": "meetings",
+      "method": "POST",
+      "path": "/meetings/admin/teachers",
+      "handler": "admin_create_teachers_meeting"
+    },
+    {
+      "module": "meetings",
+      "method": "GET",
+      "path": "/meetings/teacher/my-classes",
+      "handler": "get_my_classes"
+    },
+    {
+      "module": "meetings",
+      "method": "GET",
+      "path": "/meetings/class/{class_id}/students",
+      "handler": "get_class_students"
+    },
+    {
+      "module": "meetings",
+      "method": "POST",
+      "path": "/meetings/teacher/class/schedule",
+      "handler": "schedule_teacher_class_meeting"
+    },
+    {
+      "module": "meetings",
+      "method": "POST",
+      "path": "/meetings/admin/teachers/schedule",
+      "handler": "schedule_admin_teachers_meeting"
+    },
+    {
+      "module": "meetings",
+      "method": "POST",
+      "path": "/meetings/{meeting_id}/start",
+      "handler": "start_scheduled_meeting"
+    },
+    {
+      "module": "meetings",
+      "method": "DELETE",
+      "path": "/meetings/{meeting_id}/cancel",
+      "handler": "cancel_scheduled_meeting"
+    },
+    {
+      "module": "meetings",
+      "method": "GET",
+      "path": "/meetings/{meeting_id}/join",
+      "handler": "join_meeting"
+    },
+    {
+      "module": "meetings",
+      "method": "POST",
+      "path": "/meetings/{meeting_id}/end",
+      "handler": "end_meeting"
+    },
+    {
+      "module": "notice",
+      "method": "POST",
+      "path": "/notices/enhance",
+      "handler": "enhance_notice"
+    },
+    {
+      "module": "notice",
+      "method": "POST",
+      "path": "/notices/generate",
+      "handler": "generate_notice_from_description"
+    },
+    {
+      "module": "notice",
+      "method": "POST",
+      "path": "/notices/",
+      "handler": "create_notice"
+    },
+    {
+      "module": "notice",
+      "method": "GET",
+      "path": "/notices/",
+      "handler": "list_notices"
+    },
+    {
+      "module": "notice",
+      "method": "GET",
+      "path": "/notices/{notice_id}",
+      "handler": "get_notice"
+    },
+    {
+      "module": "notice",
+      "method": "PATCH",
+      "path": "/notices/{notice_id}",
+      "handler": "update_notice"
+    },
+    {
+      "module": "notice",
+      "method": "PATCH",
+      "path": "/notices/{notice_id}/pin",
+      "handler": "pin_notice"
+    },
+    {
+      "module": "notice",
+      "method": "POST",
+      "path": "/notices/{notice_id}/read",
+      "handler": "mark_read"
+    },
+    {
+      "module": "notice",
+      "method": "DELETE",
+      "path": "/notices/{notice_id}",
+      "handler": "delete_notice"
+    },
+    {
+      "module": "people",
+      "method": "GET",
+      "path": "/students",
+      "handler": "list_students"
+    },
+    {
+      "module": "people",
+      "method": "POST",
+      "path": "/students",
+      "handler": "create_student"
+    },
+    {
+      "module": "people",
+      "method": "GET",
+      "path": "/students/{student_id}",
+      "handler": "get_student"
+    },
+    {
+      "module": "people",
+      "method": "POST",
+      "path": "/students/{student_id}/parent-login",
+      "handler": "create_parent_login_for_student"
+    },
+    {
+      "module": "people",
+      "method": "PUT",
+      "path": "/students/{student_id}",
+      "handler": "update_student"
+    },
+    {
+      "module": "people",
+      "method": "PATCH",
+      "path": "/students/{student_id}/suspend",
+      "handler": "suspend_student"
+    },
+    {
+      "module": "people",
+      "method": "PATCH",
+      "path": "/students/{student_id}/activate",
+      "handler": "activate_student"
+    },
+    {
+      "module": "people",
+      "method": "DELETE",
+      "path": "/students/{student_id}",
+      "handler": "delete_student"
+    },
+    {
+      "module": "people",
+      "method": "GET",
+      "path": "/teachers",
+      "handler": "list_teachers"
+    },
+    {
+      "module": "people",
+      "method": "POST",
+      "path": "/teachers",
+      "handler": "create_teacher"
+    },
+    {
+      "module": "people",
+      "method": "GET",
+      "path": "/teachers/class-teachers",
+      "handler": "list_class_teachers"
+    },
+    {
+      "module": "people",
+      "method": "POST",
+      "path": "/teachers/class-teachers",
+      "handler": "assign_class_teacher"
+    },
+    {
+      "module": "people",
+      "method": "DELETE",
+      "path": "/teachers/class-teachers/{assignment_id}",
+      "handler": "delete_class_teacher_assignment"
+    },
+    {
+      "module": "people",
+      "method": "DELETE",
+      "path": "/teachers/subject-assignments/{assignment_id}",
+      "handler": "delete_teacher_subject_assignment"
+    },
+    {
+      "module": "people",
+      "method": "GET",
+      "path": "/teachers/me/classes",
+      "handler": "get_my_classes"
+    },
+    {
+      "module": "people",
+      "method": "GET",
+      "path": "/teachers/me/available-classes",
+      "handler": "get_teacher_available_classes"
+    },
+    {
+      "module": "people",
+      "method": "GET",
+      "path": "/teachers/{teacher_id}",
+      "handler": "get_teacher"
+    },
+    {
+      "module": "people",
+      "method": "PUT",
+      "path": "/teachers/{teacher_id}",
+      "handler": "update_teacher"
+    },
+    {
+      "module": "people",
+      "method": "PATCH",
+      "path": "/teachers/{teacher_id}/suspend",
+      "handler": "suspend_teacher"
+    },
+    {
+      "module": "people",
+      "method": "PATCH",
+      "path": "/teachers/{teacher_id}/activate",
+      "handler": "activate_teacher"
+    },
+    {
+      "module": "people",
+      "method": "DELETE",
+      "path": "/teachers/{teacher_id}",
+      "handler": "delete_teacher"
+    },
+    {
+      "module": "people",
+      "method": "GET",
+      "path": "/teachers/{teacher_id}/subjects",
+      "handler": "list_teacher_subjects"
+    },
+    {
+      "module": "people",
+      "method": "POST",
+      "path": "/teachers/{teacher_id}/subjects",
+      "handler": "assign_teacher_subject"
+    },
+    {
+      "module": "profile",
+      "method": "GET",
+      "path": "/profile",
+      "handler": "get_my_profile"
+    },
+    {
+      "module": "profile",
+      "method": "POST",
+      "path": "/profile/teacher/photo",
+      "handler": "upload_teacher_profile_photo"
+    },
+    {
+      "module": "profile",
+      "method": "PUT",
+      "path": "/profile",
+      "handler": "update_my_profile"
+    },
+    {
+      "module": "progress",
+      "method": "GET",
+      "path": "/progress/{lesson_id}/watch",
+      "handler": "get_video_watch_progress"
+    },
+    {
+      "module": "progress",
+      "method": "POST",
+      "path": "/progress/{lesson_id}/watch",
+      "handler": "track_video_watch_progress"
+    },
+    {
+      "module": "progress",
+      "method": "POST",
+      "path": "/progress/{lesson_id}/complete",
+      "handler": "mark_lesson_complete"
+    },
+    {
+      "module": "progress",
+      "method": "DELETE",
+      "path": "/progress/{lesson_id}/complete",
+      "handler": "mark_lesson_incomplete"
+    },
+    {
+      "module": "progress",
+      "method": "GET",
+      "path": "/progress/course/{course_id}",
+      "handler": "get_course_progress"
+    },
+    {
+      "module": "reports",
+      "method": "GET",
+      "path": "/reports/overview",
+      "handler": "reports_overview"
+    },
+    {
+      "module": "reports",
+      "method": "GET",
+      "path": "/reports/students",
+      "handler": "student_report"
+    },
+    {
+      "module": "reports",
+      "method": "GET",
+      "path": "/reports/attendance",
+      "handler": "attendance_report"
+    },
+    {
+      "module": "reports",
+      "method": "GET",
+      "path": "/reports/teachers",
+      "handler": "teacher_report"
+    },
+    {
+      "module": "reports",
+      "method": "GET",
+      "path": "/reports/homework",
+      "handler": "homework_report"
+    },
+    {
+      "module": "reports",
+      "method": "GET",
+      "path": "/reports/fees",
+      "handler": "fee_report"
+    },
+    {
+      "module": "schools",
+      "method": "GET",
+      "path": "/schools/branding/by-code/{school_code}",
+      "handler": "get_public_branding_by_school_code"
+    },
+    {
+      "module": "schools",
+      "method": "GET",
+      "path": "/schools/branding/me",
+      "handler": "get_my_school_branding"
+    },
+    {
+      "module": "schools",
+      "method": "PUT",
+      "path": "/schools/branding/me",
+      "handler": "update_my_school_branding"
+    },
+    {
+      "module": "schools",
+      "method": "POST",
+      "path": "/schools/branding/logo",
+      "handler": "upload_school_logo"
+    },
+    {
+      "module": "schools",
+      "method": "GET",
+      "path": "/schools/me",
+      "handler": "get_my_school"
+    },
+    {
+      "module": "schools",
+      "method": "PUT",
+      "path": "/schools/me",
+      "handler": "update_my_school"
+    },
+    {
+      "module": "timetable",
+      "method": "GET",
+      "path": "/timetable/meta",
+      "handler": "timetable_meta"
+    },
+    {
+      "module": "timetable",
+      "method": "GET",
+      "path": "/timetable/periods",
+      "handler": "list_periods"
+    },
+    {
+      "module": "timetable",
+      "method": "POST",
+      "path": "/timetable/periods",
+      "handler": "create_period"
+    },
+    {
+      "module": "timetable",
+      "method": "PUT",
+      "path": "/timetable/periods/{period_id}",
+      "handler": "update_period"
+    },
+    {
+      "module": "timetable",
+      "method": "DELETE",
+      "path": "/timetable/periods/{period_id}",
+      "handler": "delete_period"
+    },
+    {
+      "module": "timetable",
+      "method": "GET",
+      "path": "/timetable/days",
+      "handler": "list_days"
+    },
+    {
+      "module": "timetable",
+      "method": "POST",
+      "path": "/timetable/days",
+      "handler": "create_day"
+    },
+    {
+      "module": "timetable",
+      "method": "PUT",
+      "path": "/timetable/days/{day_id}",
+      "handler": "update_day"
+    },
+    {
+      "module": "timetable",
+      "method": "DELETE",
+      "path": "/timetable/days/{day_id}",
+      "handler": "delete_day"
+    },
+    {
+      "module": "timetable",
+      "method": "GET",
+      "path": "/timetable/entries",
+      "handler": "list_entries"
+    },
+    {
+      "module": "timetable",
+      "method": "POST",
+      "path": "/timetable/entries",
+      "handler": "create_entry"
+    },
+    {
+      "module": "timetable",
+      "method": "PUT",
+      "path": "/timetable/entries/{entry_id}",
+      "handler": "update_entry"
+    },
+    {
+      "module": "timetable",
+      "method": "DELETE",
+      "path": "/timetable/entries/{entry_id}",
+      "handler": "delete_entry"
+    },
+    {
+      "module": "timetable",
+      "method": "GET",
+      "path": "/timetable/view/class",
+      "handler": "view_by_class"
+    },
+    {
+      "module": "timetable",
+      "method": "GET",
+      "path": "/timetable/view/teacher",
+      "handler": "view_by_teacher"
+    },
+    {
+      "module": "timetable",
+      "method": "GET",
+      "path": "/timetable/my-teacher",
+      "handler": "my_teacher_timetable"
+    },
+    {
+      "module": "timetable",
+      "method": "GET",
+      "path": "/timetable/my-student",
+      "handler": "my_student_timetable"
+    },
+    {
+      "module": "timetable",
+      "method": "GET",
+      "path": "/timetable/my-children",
+      "handler": "my_children_timetable"
+    }
+  ]
+}
+
