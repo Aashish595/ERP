@@ -81,6 +81,13 @@ describe("Razorpay verification", () => {
 });
 
 describe("migration contracts", () => {
+  it("starts a fresh database with the complete ERP schema", () => {
+    const sql = readFileSync(path.resolve("migrations/001_initial.sql"), "utf8");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS schools");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS users");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS meetings");
+  });
+
   it("includes durable payment orders and meeting attendance", () => {
     const sql = readFileSync(path.resolve("migrations/002_integrations.sql"), "utf8");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS fee_payment_orders");

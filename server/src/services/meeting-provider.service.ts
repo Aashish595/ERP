@@ -19,10 +19,6 @@ function xmlTag(xml: string, name: string) {
 }
 
 export class MeetingProviderService {
-  configured() {
-    return Boolean(config.BBB_URL && config.BBB_SECRET);
-  }
-
   private assertConfigured() {
     if (!config.BBB_URL || !config.BBB_SECRET) {
       throw new ApiError(503, "BigBlueButton is not configured. Set BBB_URL and BBB_SECRET on the server.");

@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,7 +34,7 @@ class CurriculumTask(BaseModel):
     grade: str
     duration_weeks: int = Field(ge=1, le=52)
     goals: str | None = None
-    context: dict[str, Any] = {}
+    context: dict[str, Any] = Field(default_factory=dict)
 
 
 class LessonTask(BaseModel):
@@ -47,8 +48,19 @@ class LessonTask(BaseModel):
 
 class ChatTask(BaseModel):
     messages: list[dict[str, Any]]
-    lesson_context: dict[str, Any] = {}
-    user_context: dict[str, Any] = {}
+    lesson_context: dict[str, Any] = Field(default_factory=dict)
+    user_context: dict[str, Any] = Field(default_factory=dict)
+
+
+def parse_json_response(content: str, fallback: dict[str, Any]) -> dict[str, Any]:
+    normalized = content.strip()
+    if normalized.startswith("```"):
+        normalized = normalized.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    try:
+        result = json.loads(normalized)
+        return result if isinstance(result, dict) else {**fallback, "raw": content}
+    except json.JSONDecodeError:
+        return {**fallback, "raw": content}
 
 
 @app.get("/health")
@@ -80,11 +92,10 @@ async def generate_curriculum(task: CurriculumTask) -> dict:
         "Create a practical week-by-week curriculum. Return valid JSON with keys title, objectives, weeks; weeks must be an array of objects with week, topics, outcomes, activities, assessment.",
         task.model_dump_json(),
     )
-    try:
-        import json
-        return json.loads(content.removeprefix("```json").removesuffix("```").strip())
-    except Exception:
-        return {"title": f"{task.subject} curriculum", "objectives": [], "weeks": [], "raw": content}
+    return parse_json_response(
+        content,
+        {"title": f"{task.subject} curriculum", "objectives": [], "weeks": []},
+    )
 
 
 @app.post("/internal/lessons/summary", dependencies=[Depends(internal_auth)])
@@ -103,11 +114,7 @@ async def lesson_quiz(task: LessonTask) -> dict:
         "Generate a grounded multiple-choice quiz. Return valid JSON: {questions:[{question,options:[four strings],correct_answer,explanation}]}.",
         f"Count: {task.question_count}\nDifficulty: {task.difficulty}\nLanguage: {task.language}\nTitle: {task.title}\nSource:\n{task.transcript or task.content}",
     )
-    try:
-        import json
-        return json.loads(content.removeprefix("```json").removesuffix("```").strip())
-    except Exception:
-        return {"questions": [], "raw": content}
+    return parse_json_response(content, {"questions": []})
 
 
 @app.post("/internal/chat/stream", dependencies=[Depends(internal_auth)])
