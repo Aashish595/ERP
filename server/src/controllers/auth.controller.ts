@@ -5,6 +5,7 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { query, transaction } from "../db.js";
 import { ApiError } from "../errors.js";
+import { sendEmail } from "../services/email.service.js";
 import {
   newRefreshToken,
   refreshCookieOptions,
@@ -80,8 +81,15 @@ authRouter.post("/register-school", async (req, res) => {
      VALUES($1,$2,$3,NOW()+($4 * interval '1 minute'),0)`,
     [email, sha256(otp), JSON.stringify(payload), config.OTP_EXPIRE_MINUTES],
   );
+  if (!config.EMAIL_OTP_DEBUG) {
+    await sendEmail({
+      to: email,
+      subject: "Verify your School ERP registration",
+      text: `Your School ERP verification code is ${otp}. It expires in ${config.OTP_EXPIRE_MINUTES} minutes. If you did not request this code, ignore this email.`,
+    });
+  }
   res.json({
-    message: config.EMAIL_OTP_DEBUG ? "OTP generated in debug mode. Configure SMTP to send real email." : "Verification OTP sent to owner email.",
+    message: config.EMAIL_OTP_DEBUG ? "OTP generated in development debug mode." : "Verification OTP sent to owner email.",
     owner_email: email,
     expires_in_minutes: config.OTP_EXPIRE_MINUTES,
     debug_otp: config.EMAIL_OTP_DEBUG ? otp : null,
@@ -212,13 +220,20 @@ authRouter.post("/change-password", requireAuth, async (req, res) => {
 authRouter.post("/forgot-password", async (req, res) => {
   const payload = z.object({ school_code: z.string().min(2), login_id: z.string().min(1) }).parse(req.body);
   const token = randomBytes(32).toString("base64url");
-  const result = await query<{ id: number }>(
-    `SELECT u.id FROM users u JOIN schools s ON s.id=u.school_id
+  const result = await query<{ id: number; email: string; full_name: string }>(
+    `SELECT u.id,u.email,u.full_name FROM users u JOIN schools s ON s.id=u.school_id
      WHERE s.school_code=$1 AND (u.login_id=$2 OR lower(u.email)=$2) AND u.is_active=true LIMIT 1`,
     [normalizeCode(payload.school_code), normalizeLogin(payload.login_id)],
   );
   if (result.rows[0]) await query("UPDATE users SET password_reset_token_hash=$1,password_reset_expires_at=NOW()+($2 * interval '1 minute') WHERE id=$3", [sha256(token), config.OTP_EXPIRE_MINUTES, result.rows[0].id]);
   const resetUrl = `${config.FRONTEND_URL.replace(/\/$/, "")}/reset-password?token=${token}`;
+  if (!config.EMAIL_OTP_DEBUG && result.rows[0]) {
+    await sendEmail({
+      to: result.rows[0].email,
+      subject: "Reset your School ERP password",
+      text: `Hello ${result.rows[0].full_name},\n\nUse this link to reset your password:\n${resetUrl}\n\nThe link expires in ${config.OTP_EXPIRE_MINUTES} minutes. If you did not request it, ignore this email.`,
+    });
+  }
   res.json({
     message: "If this account exists, password reset instructions have been sent to the registered email.",
     reset_token: config.EMAIL_OTP_DEBUG && result.rows[0] ? token : null,

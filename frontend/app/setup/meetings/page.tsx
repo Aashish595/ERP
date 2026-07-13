@@ -56,6 +56,15 @@ interface StatsOut {
   recorded: number;
 }
 
+interface MeetingAttendance {
+  user_id: number;
+  full_name: string;
+  role: string;
+  first_joined_at: string;
+  last_joined_at: string;
+  join_count: number;
+}
+
 const STATUS_META: Record<
   MeetingStatus,
   { label: string; color: string; dot: string }
@@ -625,23 +634,94 @@ function MeetingDetailModal({
           )}
         </div>
 
-        {meeting.recording_url && (
-          <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-            <p className="text-xs font-semibold text-violet-700 mb-2">
-              Recording Available
-            </p>
-            <a
-              href={meeting.recording_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-violet-600 underline break-all"
-            >
-              {meeting.recording_url}
-            </a>
-          </div>
-        )}
+        {meeting.record && <RecordingSection meetingId={meeting.id} existingUrl={meeting.recording_url} />}
+        <AttendanceSection meetingId={meeting.id} />
       </div>
     </Modal>
+  );
+}
+
+function RecordingSection({ meetingId, existingUrl }: { meetingId: number; existingUrl: string | null }) {
+  const [url, setUrl] = useState(existingUrl);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function checkRecording() {
+    setLoading(true);
+    setMessage("");
+    try {
+      const result = await apiFetch<{ ready: boolean; recording_url: string | null }>(`/meetings/${meetingId}/recording/fetch`, { method: "POST" });
+      if (result.recording_url) setUrl(result.recording_url);
+      else setMessage("The recording is still being processed by BBB.");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Unable to check recording");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+      <p className="text-sm font-semibold text-violet-900">Meeting recording</p>
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-medium text-violet-700 underline">
+          Watch recording
+        </a>
+      ) : (
+        <button onClick={checkRecording} disabled={loading} className="mt-3 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50">
+          {loading ? "Checking..." : "Check for recording"}
+        </button>
+      )}
+      {message && <p className="mt-2 text-xs text-violet-700">{message}</p>}
+    </div>
+  );
+}
+
+function AttendanceSection({ meetingId }: { meetingId: number }) {
+  const [items, setItems] = useState<MeetingAttendance[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function loadAttendance() {
+    setLoading(true);
+    setError("");
+    try {
+      const result = await apiFetch<{ items: MeetingAttendance[] }>(`/meetings/${meetingId}/attendance`);
+      setItems(result.items);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load attendance");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">Join attendance</p>
+          <p className="text-xs text-slate-500">Participants who requested a BBB join link</p>
+        </div>
+        <button onClick={loadAttendance} disabled={loading} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+          {loading ? "Loading..." : items ? "Refresh" : "View"}
+        </button>
+      </div>
+      {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+      {items && (
+        <div className="mt-3 space-y-2">
+          <p className="text-xs font-medium text-slate-500">{items.length} participant{items.length === 1 ? "" : "s"}</p>
+          {items.length === 0 ? <p className="text-xs text-slate-400">No join activity recorded yet.</p> : items.map((item) => (
+            <div key={item.user_id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
+              <div>
+                <p className="font-medium text-slate-800">{item.full_name}</p>
+                <p className="text-slate-400">{item.role.replaceAll("_", " ")} · {fmtTime(item.first_joined_at)}</p>
+              </div>
+              <span className="text-slate-500">{item.join_count} join{item.join_count === 1 ? "" : "s"}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

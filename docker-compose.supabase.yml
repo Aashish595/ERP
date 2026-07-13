@@ -1,0 +1,30 @@
+services:
+  api:
+    build: ./server
+    env_file: ./server/.env
+    environment:
+      PORT: 8000
+      AI_SERVICE_URL: http://ai-service:8001
+    ports:
+      - "8000:8000"
+    depends_on:
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  ai-service:
+    build: ./ai-service
+    env_file: ./ai-service/.env
+    expose:
+      - "8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped

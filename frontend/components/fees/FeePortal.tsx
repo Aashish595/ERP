@@ -17,6 +17,35 @@ import FeeManager from "./FeeManager";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_OWNER", "SCHOOL_ADMIN"];
 
+type RazorpayOrderResponse = {
+  order_id: string;
+  key: string;
+  amount: number;
+  currency: string;
+  student_fee_record_id: number;
+  student_name: string;
+  fee_title: string;
+};
+
+type RazorpaySuccess = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayInstance = {
+  open(): void;
+  on(event: "payment.failed", callback: (response: { error?: { description?: string } }) => void): void;
+};
+
+type RazorpayConstructor = new (options: Record<string, unknown>) => RazorpayInstance;
+
+declare global {
+  interface Window {
+    Razorpay?: RazorpayConstructor;
+  }
+}
+
 function money(value?: number | null) {
   return `₹${Number(value || 0).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
@@ -73,21 +102,24 @@ function StudentFeeView() {
 
     try {
       // Step 1 — get order from backend
-      const order = await apiFetch<any>("/fees/razorpay/create-order", {
+      const order = await apiFetch<RazorpayOrderResponse>("/fees/razorpay/create-order", {
         method: "POST",
         body: JSON.stringify({ student_fee_record_id: recordId }),
       });
 
       // Step 2 — open Razorpay popup
-      const rzp = new (window as any).Razorpay({
+      if (!window.Razorpay) {
+        throw new Error("Payment checkout is still loading. Please wait a moment and try again.");
+      }
+      const rzp = new window.Razorpay({
         key: order.key,
         amount: order.amount,
-        currency: "INR",
+        currency: order.currency,
         order_id: order.order_id,
         name: "School Fee Payment",
         description: order.fee_title,
         prefill: { name: order.student_name },
-        handler: async (response: any) => {
+        handler: async (response: RazorpaySuccess) => {
           try {
             // Step 3 — verify with backend (creates FeePayment record)
             await apiFetch("/fees/razorpay/verify-payment", {
@@ -115,6 +147,10 @@ function StudentFeeView() {
             setPayingRecordId(null);
           },
         },
+      });
+      rzp.on("payment.failed", (response) => {
+        setPaymentError(response.error?.description || "Payment failed. No fee receipt was created.");
+        setPayingRecordId(null);
       });
       rzp.open();
     } catch (err) {

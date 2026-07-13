@@ -17,6 +17,7 @@ export type AuthenticatedRequest = Request<any, any, any, any> & {
   user: AuthUser;
   academicSessionId?: number;
   requestStartedAt?: bigint;
+  rawBody?: Buffer;
 };
 
 export interface JwtPayload {

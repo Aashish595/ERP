@@ -11,10 +11,10 @@ async def complete(system: str, user: str, *, temperature: float = 0.3) -> str:
         raise HTTPException(status_code=503, detail="AI provider is not configured")
     async with httpx.AsyncClient(timeout=settings.AI_TIMEOUT_SECONDS) as client:
         response = await client.post(
-            f"{settings.AI_BASE_URL.rstrip('/')}/chat/completions",
+            f"{settings.provider_base_url.rstrip('/')}/chat/completions",
             headers={"Authorization": f"Bearer {settings.api_key}", "Content-Type": "application/json"},
             json={
-                "model": settings.AI_MODEL,
+                "model": settings.provider_model,
                 "temperature": temperature,
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
             },
@@ -33,9 +33,9 @@ async def stream_complete(system: str, messages: list[dict]) -> AsyncIterator[st
     async with httpx.AsyncClient(timeout=settings.AI_TIMEOUT_SECONDS) as client:
         async with client.stream(
             "POST",
-            f"{settings.AI_BASE_URL.rstrip('/')}/chat/completions",
+            f"{settings.provider_base_url.rstrip('/')}/chat/completions",
             headers={"Authorization": f"Bearer {settings.api_key}", "Content-Type": "application/json"},
-            json={"model": settings.AI_MODEL, "stream": True, "messages": [{"role": "system", "content": system}, *messages]},
+            json={"model": settings.provider_model, "stream": True, "messages": [{"role": "system", "content": system}, *messages]},
         ) as response:
             if response.status_code >= 400:
                 yield f"data: {json.dumps({'error': 'AI provider request failed'})}\n\n"
@@ -45,11 +45,11 @@ async def stream_complete(system: str, messages: list[dict]) -> AsyncIterator[st
                     continue
                 raw = line[6:]
                 if raw == "[DONE]":
-                    yield "data: [DONE]\n\n"
+                    yield f"data: {json.dumps({'status': 'done'})}\n\n"
                     return
                 try:
                     chunk = json.loads(raw)["choices"][0]["delta"].get("content")
                     if chunk:
-                        yield f"data: {json.dumps({'content': chunk})}\n\n"
+                        yield f"data: {json.dumps({'token': chunk})}\n\n"
                 except (KeyError, IndexError, json.JSONDecodeError):
                     continue

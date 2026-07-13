@@ -13,13 +13,33 @@ import { communicationRouter, noticesRouter } from "./routes/communication.js";
 import { educationRouter } from "./routes/education.js";
 import { learningRouter } from "./routes/learning.js";
 import { financeRouter } from "./routes/finance.js";
+import { feesRouter } from "./routes/fees.js";
 import { opsRouter } from "./routes/ops.js";
+import { meetingsRouter } from "./routes/meetings.js";
 import { aiRouter } from "./routes/ai.js";
 import { academicRoutes } from "./routes/domain/academic.routes.js";
 import { cacheStatus } from "./cache.js";
 import { config, corsOrigins } from "./config.js";
 import { query } from "./db.js";
 import { errorHandler, notFound } from "./errors.js";
+import type { AuthenticatedRequest } from "./types.js";
+
+export const applicationRouters = [
+  { path: "/auth", router: authRouter },
+  { path: "/schools", router: schoolsRouter },
+  { path: "/profile", router: profileRouter },
+  { path: "/communication", router: communicationRouter },
+  { path: "/notices", router: noticesRouter },
+  { path: "", router: academicRoutes },
+  { path: "", router: resourceRouter },
+  { path: "", router: educationRouter },
+  { path: "", router: learningRouter },
+  { path: "", router: feesRouter },
+  { path: "", router: financeRouter },
+  { path: "", router: meetingsRouter },
+  { path: "", router: opsRouter },
+  { path: "", router: aiRouter },
+] as const;
 
 export function createApp() {
   const app = express();
@@ -37,7 +57,12 @@ export function createApp() {
   }));
   app.use(compression({ threshold: 1024 }));
   app.use(cookieParser());
-  app.use(express.json({ limit: "2mb" }));
+  app.use(express.json({
+    limit: "2mb",
+    verify(req, _res, buffer) {
+      (req as AuthenticatedRequest).rawBody = Buffer.from(buffer);
+    },
+  }));
   app.use(express.urlencoded({ extended: true, limit: "2mb" }));
   app.use("/uploads", express.static(path.resolve("uploads"), { maxAge: "1d", immutable: false }));
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -67,18 +92,10 @@ export function createApp() {
     }
   });
 
-  app.use("/auth", authRouter);
-  app.use("/schools", schoolsRouter);
-  app.use("/profile", profileRouter);
-  app.use(aiRouter);
-  app.use(communicationRouter);
-  app.use("/notices", noticesRouter);
-  app.use(academicRoutes);
-  app.use(resourceRouter);
-  app.use(educationRouter);
-  app.use(learningRouter);
-  app.use(financeRouter);
-  app.use(opsRouter);
+  for (const { path: mountPath, router } of applicationRouters) {
+    if (mountPath) app.use(mountPath, router);
+    else app.use(router);
+  }
 
   app.use(notFound);
   app.use(errorHandler);

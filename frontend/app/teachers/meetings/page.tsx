@@ -6,6 +6,7 @@ import { getSavedAuth, apiFetch } from "@/lib/api";
 
 type MeetingType = "teacher_class" | "admin_teachers";
 type MeetingStatus = "scheduled" | "live" | "ended";
+const ADMIN_ROLES = ["SUPER_ADMIN", "SCHOOL_OWNER", "SCHOOL_ADMIN"];
 
 interface ClassOption {
   class_id: number;
@@ -45,6 +46,15 @@ interface JoinResponse {
 interface CreateMeetingResponse {
   meeting_id: number;
   join_url: string;
+}
+
+interface MeetingAttendance {
+  user_id: number;
+  full_name: string;
+  role: string;
+  first_joined_at: string;
+  last_joined_at: string;
+  join_count: number;
 }
 
 const STATUS_META: Record<
@@ -221,6 +231,60 @@ function RecordingSection({
           "Check for Recording"
         )}
       </button>
+    </div>
+  );
+}
+
+function AttendanceSection({ meetingId }: { meetingId: number }) {
+  const [items, setItems] = useState<MeetingAttendance[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function loadAttendance() {
+    setLoading(true);
+    setError("");
+    try {
+      const result = await apiFetch<{ items: MeetingAttendance[] }>(`/meetings/${meetingId}/attendance`);
+      setItems(result.items);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load attendance");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">Join attendance</p>
+          <p className="text-xs text-slate-500">Participants who requested a BBB join link</p>
+        </div>
+        <button
+          onClick={loadAttendance}
+          disabled={loading}
+          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+        >
+          {loading ? "Loading..." : items ? "Refresh" : "View"}
+        </button>
+      </div>
+      {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+      {items && (
+        <div className="mt-3 space-y-2">
+          <p className="text-xs font-medium text-slate-500">{items.length} participant{items.length === 1 ? "" : "s"}</p>
+          {items.length === 0 ? (
+            <p className="text-xs text-slate-400">No join activity recorded yet.</p>
+          ) : items.map((item) => (
+            <div key={item.user_id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
+              <div>
+                <p className="font-medium text-slate-800">{item.full_name}</p>
+                <p className="text-slate-400">{item.role.replaceAll("_", " ")} · {fmtTime(item.first_joined_at)}</p>
+              </div>
+              <span className="text-slate-500">{item.join_count} join{item.join_count === 1 ? "" : "s"}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -722,6 +786,8 @@ function MeetingDetailModal({
 }) {
   const sm = STATUS_META[meeting.status];
   const tm = TYPE_META[meeting.meeting_type];
+  const auth = getSavedAuth();
+  const canViewAttendance = ADMIN_ROLES.includes(auth?.user.role ?? "") || meeting.created_by_user_id === auth?.user.id;
 
   return (
     <Modal title={meeting.title} onClose={onClose}>
@@ -788,6 +854,7 @@ function MeetingDetailModal({
             existingUrl={meeting.recording_url}
           />
         )}
+        {canViewAttendance && <AttendanceSection meetingId={meeting.id} />}
       </div>
     </Modal>
   );

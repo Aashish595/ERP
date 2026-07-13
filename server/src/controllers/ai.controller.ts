@@ -4,6 +4,8 @@ import { allowRoles, requireAuth, schoolId } from "../auth.js";
 import { aiService } from "../services/ai.service.js";
 import { query } from "../db.js";
 import { ApiError } from "../errors.js";
+import { config } from "../config.js";
+import { sendEmail } from "../services/email.service.js";
 import type { AuthenticatedRequest } from "../types.js";
 
 export const aiRouter = Router();
@@ -52,20 +54,68 @@ aiRouter.post("/sessions/:sessionId/messages", async (req, res) => {
   const user = (req as AuthenticatedRequest).user;
   const session = (await query<any>("SELECT * FROM chat_session WHERE id=$1 AND user_id=$2", [req.params.sessionId, user.id])).rows[0];
   if (!session) throw new ApiError(404, "Chat session not found");
-  const content = req.body.content ?? req.body.message;
+  const content = String(req.body.content ?? req.body.message ?? "").trim();
   if (!content) throw new ApiError(422, "Message content is required");
+  if (content.length > 30_000) throw new ApiError(422, "Message content is too long");
   await query("INSERT INTO chat_message(role,content,session_id,user_id) VALUES('user',$1,$2,$3)", [content, session.id, user.id]);
   const previous = await query<any>("SELECT role,content FROM chat_message WHERE session_id=$1 ORDER BY created_at DESC LIMIT 20", [session.id]);
-  const lesson = req.body.lesson_id ? (await query<any>("SELECT id,title,content,transcript FROM lessons WHERE id=$1", [req.body.lesson_id])).rows[0] : null;
-  await query("UPDATE chat_session SET updated_at=NOW() WHERE id=$1", [session.id]);
-  await aiService.stream("/internal/chat/stream", {
-    messages: previous.rows.reverse(),
-    lesson_context: lesson ?? {},
-    user_context: { role: user.role, school_id: user.school_id },
-  }, res);
+  const lesson = req.body.lesson_id ? (await query<any>(
+    `SELECT l.id,l.title,l.content,l.transcript FROM lessons l
+     JOIN courses c ON c.id=l.course_id WHERE l.id=$1 AND c.school_id=$2`,
+    [Number(req.body.lesson_id), schoolId(req)],
+  )).rows[0] : null;
+  if (req.body.lesson_id && !lesson) throw new ApiError(404, "Lesson not found");
+  await query(
+    "UPDATE chat_session SET updated_at=NOW(),title=CASE WHEN title='New chat' THEN LEFT($2,80) ELSE title END WHERE id=$1",
+    [session.id, content],
+  );
+  try {
+    const answer = await aiService.stream("/internal/chat/stream", {
+      messages: previous.rows.reverse(),
+      lesson_context: lesson ?? {},
+      user_context: { role: user.role, school_id: user.school_id },
+    }, res);
+    if (answer.trim()) {
+      await query("INSERT INTO chat_message(role,content,session_id,user_id) VALUES('assistant',$1,$2,$3)", [answer, session.id, user.id]);
+      await query("UPDATE chat_session SET updated_at=NOW() WHERE id=$1", [session.id]);
+    }
+    res.end();
+  } catch (error) {
+    if (!res.headersSent) throw error;
+    res.write(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : "AI stream failed" })}\n\n`);
+    res.end();
+  }
 });
-aiRouter.post("/sessions/share/email", async (_req, res) => res.json({ message: "Email share queued" }));
-aiRouter.post("/sessions/share/telegram", async (_req, res) => res.json({ message: "Telegram share queued" }));
+aiRouter.post("/sessions/share/email", async (req, res) => {
+  const user = (req as AuthenticatedRequest).user;
+  const content = String(req.body.content ?? "").trim();
+  const to = String(req.body.to_email || user.email || "").trim();
+  if (!content || content.length > 30_000) throw new ApiError(422, "Share content is required and must be under 30,000 characters");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new ApiError(422, "A valid recipient email is required");
+  const subject = String(req.body.subject || req.body.lesson_title || "Shared learning assistant answer").slice(0, 180);
+  await sendEmail({ to, subject, text: content });
+  res.json({ ok: true, channel: "email", message: "Answer sent by email" });
+});
+aiRouter.post("/sessions/share/telegram", async (req, res) => {
+  const content = String(req.body.content ?? "").trim();
+  const chatId = String(req.body.chat_id || config.TELEGRAM_DEFAULT_CHAT_ID || "").trim();
+  if (!content || content.length > 4_000) throw new ApiError(422, "Telegram content is required and must be under 4,000 characters");
+  if (!config.TELEGRAM_BOT_TOKEN || !chatId) throw new ApiError(503, "Telegram sharing is not configured");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${config.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text: content }),
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new ApiError(502, "Telegram delivery failed");
+  } finally {
+    clearTimeout(timeout);
+  }
+  res.json({ ok: true, channel: "telegram", message: "Answer sent to Telegram" });
+});
 
 aiRouter.get("/lessons/:lessonId/summary", async (req, res) => {
   const lesson = (await query<any>(
