@@ -4,8 +4,18 @@ import RouteShell from "@/components/RouteShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "School ERP",
-  description: "School and college management portal",
+  title: {
+    default: "School ERP & LMS",
+    template: "%s | School ERP & LMS",
+  },
+  description: "A multi-tenant school operations and learning management platform.",
+  applicationName: "School ERP & LMS",
+  openGraph: {
+    title: "School ERP & LMS",
+    description: "School operations, academics, finance, communication, and AI-assisted learning in one platform.",
+    siteName: "School ERP & LMS",
+    type: "website",
+  },
 };
 
 const cachedThemeScript = `

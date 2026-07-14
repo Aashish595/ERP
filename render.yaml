@@ -1,48 +1,45 @@
 services:
   - type: web
-    name: school-erp-api-YOURNAME
+    name: erp-lms
     runtime: docker
     dockerfilePath: ./Dockerfile.free
-    region: singapore
     plan: free
     healthCheckPath: /health
-
     envVars:
       - key: NODE_ENV
         value: production
-
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_SSL
         value: "true"
       - key: DB_POOL_MAX
         value: "5"
-
+      - key: DB_IDLE_TIMEOUT_MS
+        value: "30000"
+      - key: DB_STATEMENT_TIMEOUT_MS
+        value: "15000"
       - key: JWT_SECRET
         generateValue: true
       - key: AI_SERVICE_TOKEN
         generateValue: true
-
       - key: CORS_ORIGINS
-        sync: false
+        value: https://erp-sand-eight-92.vercel.app
       - key: FRONTEND_URL
-        sync: false
+        value: https://erp-sand-eight-92.vercel.app
       - key: PUBLIC_API_URL
-        sync: false
-
-      - key: COOKIE_SECURE
-        value: "true"
-      - key: COOKIE_SAME_SITE
-        value: none
-
-      - key: REDIS_REQUIRED
-        value: "false"
-
+        value: https://erp-lms.onrender.com
+      - key: AI_SERVICE_URL
+        value: http://127.0.0.1:8001
       - key: OPENROUTER_API_KEY
         sync: false
       - key: AI_MODEL
         value: openai/gpt-4.1-mini
-
+      - key: REDIS_REQUIRED
+        value: "false"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: none
       - key: EMAIL_OTP_DEBUG
         value: "false"
       - key: SMTP_HOST
@@ -59,7 +56,6 @@ services:
         value: School ERP
       - key: SMTP_USE_TLS
         value: "true"
-
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
