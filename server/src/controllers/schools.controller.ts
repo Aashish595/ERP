@@ -4,6 +4,7 @@ import { query } from "../db.js";
 import { ApiError } from "../errors.js";
 import { upload } from "../uploads.js";
 import { uploadService } from "../services/upload.service.js";
+import { getProfileView, updateProfileView } from "../services/profile-view.service.js";
 import type { AuthenticatedRequest } from "../types.js";
 
 export const schoolsRouter = Router();
@@ -79,26 +80,17 @@ schoolsRouter.post("/branding/logo", allowRoles("SUPER_ADMIN", "SCHOOL_OWNER", "
 export const profileRouter = Router();
 profileRouter.use(requireAuth);
 profileRouter.get("/", async (req, res) => {
-  const user = (req as AuthenticatedRequest).user;
-  let profile: any = null;
-  if (user.role === "TEACHER") profile = (await query("SELECT * FROM teachers WHERE user_id=$1", [user.id])).rows[0];
-  if (user.role === "STUDENT") profile = (await query("SELECT * FROM students WHERE user_id=$1", [user.id])).rows[0];
-  if (user.role === "PARENT") profile = (await query("SELECT * FROM parent_guardians WHERE user_id=$1", [user.id])).rows[0];
-  res.json({ user, profile });
+  res.json(await getProfileView(req as AuthenticatedRequest));
 });
 profileRouter.put("/", async (req, res) => {
-  const user = (req as AuthenticatedRequest).user;
-  const allowed = ["full_name", "phone"];
-  const values = allowed.filter((key) => req.body[key] !== undefined);
-  if (values.length) await query(`UPDATE users SET ${values.map((key, i) => `${key}=$${i + 1}`).join(",")},updated_at=NOW() WHERE id=$${values.length + 1}`, [...values.map((key) => req.body[key]), user.id]);
-  const updated = (await query("SELECT id,school_id,full_name,email,phone,login_id,role,must_change_password FROM users WHERE id=$1", [user.id])).rows[0];
-  res.json({ user: updated, profile: null });
+  res.json(await updateProfileView(req as AuthenticatedRequest, req.body));
 });
 profileRouter.post("/teacher/photo", upload.single("file"), async (req, res) => {
   const user = (req as AuthenticatedRequest).user;
   if (user.role !== "TEACHER") throw new ApiError(403, "Only teachers can upload a teacher profile photo");
   if (!req.file) throw new ApiError(422, "Photo is required");
   const photo = await storeUpload(req.file, `schools/${user.school_id}/teachers`);
-  const profile = (await query("UPDATE teachers SET photo_url=$1,updated_at=NOW() WHERE user_id=$2 RETURNING *", [photo, user.id])).rows[0];
-  res.json({ user: { ...user, photo_url: photo }, profile });
+  const updated = await query("UPDATE teachers SET photo_url=$1,updated_at=NOW() WHERE user_id=$2 AND school_id=$3 RETURNING id", [photo, user.id, user.school_id]);
+  if (!updated.rowCount) throw new ApiError(404, "Teacher profile is not linked to this login yet");
+  res.json(await getProfileView(req as AuthenticatedRequest));
 });

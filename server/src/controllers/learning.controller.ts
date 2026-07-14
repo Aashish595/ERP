@@ -11,22 +11,181 @@ const storeUpload = uploadService.store.bind(uploadService);
 const staff=allowRoles("SUPER_ADMIN","SCHOOL_OWNER","SCHOOL_ADMIN","TEACHER");
 const admin=allowRoles("SUPER_ADMIN","SCHOOL_OWNER","SCHOOL_ADMIN");
 
-const timetableConfigs={periods:{table:"timetable_periods",fields:["period_number","name","start_time","end_time","is_break","is_active"]},days:{table:"timetable_days",fields:["day_of_week","display_name","sort_order","is_active"]},entries:{table:"timetable_entries",fields:["academic_session_id","class_id","section_id","section_name","day_id","period_id","subject_id","teacher_id","room","note","is_active"]}} as const;
-for(const [path,cfg] of Object.entries(timetableConfigs)){
- learningRouter.get(`/timetable/${path}`,async(req,res)=>{const conditions=["school_id=$1"];const values:unknown[]=[schoolId(req)];for(const f of cfg.fields){if(req.query[f]){values.push(req.query[f]);conditions.push(`${f}=$${values.length}`);}}const order=path==="days"?"sort_order":path==="periods"?"period_number":"id";res.json((await query(`SELECT * FROM ${cfg.table} WHERE ${conditions.join(" AND ")} ORDER BY ${order}` ,values)).rows);});
- learningRouter.post(`/timetable/${path}`,admin,async(req,res)=>{const data:any={...req.body};if(path==="entries"&&!data.academic_session_id)data.academic_session_id=await activeAcademicSessionId(req);const cols=cfg.fields.filter(f=>data[f]!==undefined);const r=await query(`INSERT INTO ${cfg.table}(school_id,${cols.join(",")}) VALUES($1,${cols.map((_,i)=>`$${i+2}`).join(",")}) RETURNING *`,[schoolId(req),...cols.map(f=>data[f])]);res.status(201).json(r.rows[0]);});
- learningRouter.put(`/timetable/${path}/:id`,admin,async(req,res)=>{const cols=cfg.fields.filter(f=>req.body[f]!==undefined);if(!cols.length)throw new ApiError(422,"No valid fields supplied");const r=await query(`UPDATE ${cfg.table} SET ${cols.map((f,i)=>`${f}=$${i+1}`).join(",")},updated_at=NOW() WHERE id=$${cols.length+1} AND school_id=$${cols.length+2} RETURNING *`,[...cols.map(f=>req.body[f]),Number(req.params.id),schoolId(req)]);if(!r.rows[0])throw new ApiError(404,"Record not found");res.json(r.rows[0]);});
- learningRouter.delete(`/timetable/${path}/:id`,admin,async(req,res)=>{const r=await query(`DELETE FROM ${cfg.table} WHERE id=$1 AND school_id=$2 RETURNING id`,[Number(req.params.id),schoolId(req)]);if(!r.rowCount)throw new ApiError(404,"Record not found");res.json({message:"Deleted successfully"});});
+const timetableConfigs = {
+  periods: { table: "timetable_periods", fields: ["period_number", "name", "start_time", "end_time", "is_break", "is_active"] },
+  days: { table: "timetable_days", fields: ["day_of_week", "display_name", "sort_order", "is_active"] },
+  entries: { table: "timetable_entries", fields: ["academic_session_id", "class_id", "section_id", "section_name", "day_id", "period_id", "subject_id", "teacher_id", "room", "note", "is_active"] },
+} as const;
+
+async function timetableEntries(req: import("express").Request) {
+  const values: unknown[] = [schoolId(req)];
+  const conditions = ["e.school_id=$1"];
+  const selectedSessionId = req.query.academic_session_id
+    ? requiredPositiveId(req.query.academic_session_id, "Academic session")
+    : await activeAcademicSessionId(req);
+  if (selectedSessionId) {
+    values.push(selectedSessionId);
+    conditions.push(`e.academic_session_id=$${values.length}`);
+  }
+  for (const field of ["class_id", "section_id", "day_id", "period_id", "subject_id", "teacher_id", "is_active"] as const) {
+    if (req.query[field] === undefined || req.query[field] === "") continue;
+    values.push(req.query[field]);
+    conditions.push(`e.${field}=$${values.length}`);
+  }
+  return (await query<any>(
+    `SELECT e.*,d.day_of_week,d.display_name day_name,d.sort_order day_sort_order,
+            p.period_number,p.name period_name,p.start_time,p.end_time,p.is_break,
+            sub.name subject_name,t.full_name teacher_name,c.name class_name,
+            COALESCE(se.name,e.section_name) section_name,ses.name academic_session_name
+       FROM timetable_entries e
+       JOIN timetable_days d ON d.id=e.day_id
+       JOIN timetable_periods p ON p.id=e.period_id
+       JOIN school_classes c ON c.id=e.class_id
+       LEFT JOIN sections se ON se.id=e.section_id
+       LEFT JOIN subjects sub ON sub.id=e.subject_id
+       LEFT JOIN teachers t ON t.id=e.teacher_id
+       LEFT JOIN academic_sessions ses ON ses.id=e.academic_session_id
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY d.sort_order,p.period_number,e.id`,
+    values,
+  )).rows;
 }
-learningRouter.get("/timetable/meta",async(req,res)=>{const sid=schoolId(req);const [periods,days,classes,sections,subjects,teachers]=await Promise.all([query("SELECT * FROM timetable_periods WHERE school_id=$1 ORDER BY period_number",[sid]),query("SELECT * FROM timetable_days WHERE school_id=$1 ORDER BY sort_order",[sid]),query("SELECT id,name FROM school_classes WHERE school_id=$1 AND is_active=true",[sid]),query("SELECT id,name,class_id FROM sections WHERE school_id=$1 AND is_active=true",[sid]),query("SELECT id,name,class_id FROM subjects WHERE school_id=$1 AND is_active=true",[sid]),query("SELECT id,full_name name FROM teachers WHERE school_id=$1 AND is_active=true",[sid])]);res.json({periods:periods.rows,days:days.rows,classes:classes.rows,sections:sections.rows,subjects:subjects.rows,teachers:teachers.rows});});
-async function timetableGrid(req:import("express").Request,classId:number|null,teacherId:number|null){const result=await query<any>(`SELECT e.*,d.day_of_week,d.display_name day_name,d.sort_order,p.period_number,p.name period_name,p.start_time,p.end_time,p.is_break,s.name subject_name,t.full_name teacher_name,c.name class_name
- FROM timetable_entries e JOIN timetable_days d ON d.id=e.day_id JOIN timetable_periods p ON p.id=e.period_id JOIN school_classes c ON c.id=e.class_id LEFT JOIN subjects s ON s.id=e.subject_id LEFT JOIN teachers t ON t.id=e.teacher_id
- WHERE e.school_id=$1 AND ($2::int IS NULL OR e.class_id=$2) AND ($3::int IS NULL OR e.teacher_id=$3) AND e.is_active=true ORDER BY d.sort_order,p.period_number`,[schoolId(req),classId,teacherId]);return{class_id:classId,teacher_id:teacherId,entries:result.rows};}
-learningRouter.get("/timetable/view/class",async(req,res)=>res.json(await timetableGrid(req,Number(req.query.class_id),null)));
-learningRouter.get("/timetable/view/teacher",async(req,res)=>res.json(await timetableGrid(req,null,Number(req.query.teacher_id))));
-learningRouter.get("/timetable/my-teacher",async(req,res)=>{const t=(await query<any>("SELECT id FROM teachers WHERE user_id=$1",[(req as AuthenticatedRequest).user.id])).rows[0];res.json(t?await timetableGrid(req,null,t.id):{entries:[]});});
-learningRouter.get("/timetable/my-student",async(req,res)=>{const s=(await query<any>("SELECT class_id FROM students WHERE user_id=$1",[(req as AuthenticatedRequest).user.id])).rows[0];res.json(s?await timetableGrid(req,s.class_id,null):{entries:[]});});
-learningRouter.get("/timetable/my-children",async(req,res)=>{const rows=await query<any>("SELECT s.id,s.class_id,concat_ws(' ',s.first_name,s.last_name) student_name FROM parent_guardians g JOIN students s ON s.guardian_id=g.id WHERE g.user_id=$1",[(req as AuthenticatedRequest).user.id]);res.json(await Promise.all(rows.rows.map(async(s:any)=>({...await timetableGrid(req,s.class_id,null),student_id:s.id,student_name:s.student_name}))));});
+
+for (const [path, cfg] of Object.entries(timetableConfigs)) {
+  learningRouter.get(`/timetable/${path}`, async (req, res) => {
+    if (path === "entries") return res.json(await timetableEntries(req));
+    const conditions = ["school_id=$1"];
+    const values: unknown[] = [schoolId(req)];
+    for (const field of cfg.fields) {
+      if (req.query[field] === undefined || req.query[field] === "") continue;
+      values.push(req.query[field]);
+      conditions.push(`${field}=$${values.length}`);
+    }
+    const order = path === "days" ? "sort_order" : "period_number";
+    res.json((await query(`SELECT * FROM ${cfg.table} WHERE ${conditions.join(" AND ")} ORDER BY ${order}`, values)).rows);
+  });
+  learningRouter.post(`/timetable/${path}`, admin, async (req, res) => {
+    const data: any = { ...req.body };
+    if (path === "entries" && !data.academic_session_id) data.academic_session_id = await activeAcademicSessionId(req);
+    const columns = cfg.fields.filter((field) => data[field] !== undefined);
+    const result = await query(
+      `INSERT INTO ${cfg.table}(school_id,${columns.join(",")}) VALUES($1,${columns.map((_, index) => `$${index + 2}`).join(",")}) RETURNING *`,
+      [schoolId(req), ...columns.map((field) => data[field])],
+    );
+    res.status(201).json(result.rows[0]);
+  });
+  learningRouter.put(`/timetable/${path}/:id`, admin, async (req, res) => {
+    const columns = cfg.fields.filter((field) => req.body[field] !== undefined);
+    if (!columns.length) throw new ApiError(422, "No valid fields supplied");
+    const result = await query(
+      `UPDATE ${cfg.table} SET ${columns.map((field, index) => `${field}=$${index + 1}`).join(",")},updated_at=NOW()
+        WHERE id=$${columns.length + 1} AND school_id=$${columns.length + 2} RETURNING *`,
+      [...columns.map((field) => req.body[field]), Number(req.params.id), schoolId(req)],
+    );
+    if (!result.rows[0]) throw new ApiError(404, "Record not found");
+    res.json(result.rows[0]);
+  });
+  learningRouter.delete(`/timetable/${path}/:id`, admin, async (req, res) => {
+    const result = await query(`DELETE FROM ${cfg.table} WHERE id=$1 AND school_id=$2 RETURNING id`, [Number(req.params.id), schoolId(req)]);
+    if (!result.rowCount) throw new ApiError(404, "Record not found");
+    res.json({ message: "Deleted successfully" });
+  });
+}
+
+learningRouter.get("/timetable/meta", async (req, res) => {
+  const sid = schoolId(req);
+  const sessionId = await activeAcademicSessionId(req);
+  const [periods, days, classes, sections, subjects, teachers, sessions] = await Promise.all([
+    query("SELECT * FROM timetable_periods WHERE school_id=$1 ORDER BY period_number", [sid]),
+    query("SELECT * FROM timetable_days WHERE school_id=$1 ORDER BY sort_order", [sid]),
+    query("SELECT id,name FROM school_classes WHERE school_id=$1 AND is_active=true AND ($2::int IS NULL OR academic_session_id=$2) ORDER BY name", [sid, sessionId]),
+    query("SELECT id,name,class_id::text extra FROM sections WHERE school_id=$1 AND is_active=true AND ($2::int IS NULL OR academic_session_id=$2) ORDER BY name", [sid, sessionId]),
+    query("SELECT id,name,class_id::text extra FROM subjects WHERE school_id=$1 AND is_active=true AND ($2::int IS NULL OR academic_session_id=$2) ORDER BY name", [sid, sessionId]),
+    query("SELECT id,full_name name FROM teachers WHERE school_id=$1 AND is_active=true AND ($2::int IS NULL OR academic_session_id=$2) ORDER BY full_name", [sid, sessionId]),
+    query("SELECT id,name,CASE WHEN is_active THEN 'active' ELSE NULL END extra FROM academic_sessions WHERE school_id=$1 ORDER BY start_date DESC,id DESC", [sid]),
+  ]);
+  res.json({
+    periods: periods.rows,
+    days: days.rows,
+    classes: classes.rows,
+    sections: sections.rows,
+    subjects: subjects.rows,
+    teachers: teachers.rows,
+    academic_sessions: sessions.rows,
+    current_academic_session_id: sessionId,
+  });
+});
+
+async function timetableGrid(req: import("express").Request, classId: number | null, teacherId: number | null, sectionId: number | null = null) {
+  const sid = schoolId(req);
+  const sessionId = await activeAcademicSessionId(req);
+  const [entries, periods, days, classRow, teacherRow] = await Promise.all([
+    query<any>(
+      `SELECT e.*,d.day_of_week,d.display_name day_name,d.sort_order day_sort_order,
+              p.period_number,p.name period_name,p.start_time,p.end_time,p.is_break,
+              sub.name subject_name,t.full_name teacher_name,c.name class_name,
+              COALESCE(se.name,e.section_name) section_name,ses.name academic_session_name
+         FROM timetable_entries e
+         JOIN timetable_days d ON d.id=e.day_id
+         JOIN timetable_periods p ON p.id=e.period_id
+         JOIN school_classes c ON c.id=e.class_id
+         LEFT JOIN sections se ON se.id=e.section_id
+         LEFT JOIN subjects sub ON sub.id=e.subject_id
+         LEFT JOIN teachers t ON t.id=e.teacher_id
+         LEFT JOIN academic_sessions ses ON ses.id=e.academic_session_id
+        WHERE e.school_id=$1 AND ($2::int IS NULL OR e.class_id=$2)
+          AND ($3::int IS NULL OR e.teacher_id=$3) AND ($4::int IS NULL OR e.section_id=$4)
+          AND ($5::int IS NULL OR e.academic_session_id=$5) AND e.is_active=true
+        ORDER BY d.sort_order,p.period_number`,
+      [sid, classId, teacherId, sectionId, sessionId],
+    ),
+    query("SELECT * FROM timetable_periods WHERE school_id=$1 AND is_active=true ORDER BY period_number", [sid]),
+    query("SELECT * FROM timetable_days WHERE school_id=$1 AND is_active=true ORDER BY sort_order", [sid]),
+    classId ? query<any>("SELECT name FROM school_classes WHERE id=$1 AND school_id=$2", [classId, sid]) : Promise.resolve({ rows: [] }),
+    teacherId ? query<any>("SELECT full_name name FROM teachers WHERE id=$1 AND school_id=$2", [teacherId, sid]) : Promise.resolve({ rows: [] }),
+  ]);
+  const mode = teacherId ? "teacher" : "class";
+  const name = teacherId ? teacherRow.rows[0]?.name : classRow.rows[0]?.name;
+  return {
+    mode,
+    title: `${name || (mode === "teacher" ? "Teacher" : "Class")} Timetable`,
+    class_id: classId,
+    teacher_id: teacherId,
+    entries: entries.rows,
+    periods: periods.rows,
+    days: days.rows,
+  };
+}
+
+function requiredPositiveId(value: unknown, label: string) {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) throw new ApiError(422, `${label} is required`);
+  return id;
+}
+
+learningRouter.get("/timetable/view/class", async (req, res) => {
+  const classId = requiredPositiveId(req.query.class_id, "Class");
+  const sectionId = req.query.section_id ? requiredPositiveId(req.query.section_id, "Section") : null;
+  res.json(await timetableGrid(req, classId, null, sectionId));
+});
+learningRouter.get("/timetable/view/teacher", async (req, res) => {
+  res.json(await timetableGrid(req, null, requiredPositiveId(req.query.teacher_id, "Teacher")));
+});
+learningRouter.get("/timetable/my-teacher", async (req, res) => {
+  const teacher = (await query<any>("SELECT id FROM teachers WHERE user_id=$1 AND school_id=$2", [(req as AuthenticatedRequest).user.id, schoolId(req)])).rows[0];
+  res.json(teacher ? await timetableGrid(req, null, teacher.id) : { mode: "teacher", title: "My Timetable", entries: [], periods: [], days: [] });
+});
+learningRouter.get("/timetable/my-student", async (req, res) => {
+  const student = (await query<any>("SELECT class_id,section_id FROM students WHERE user_id=$1 AND school_id=$2", [(req as AuthenticatedRequest).user.id, schoolId(req)])).rows[0];
+  res.json(student ? await timetableGrid(req, student.class_id, null, student.section_id) : { mode: "class", title: "My Timetable", entries: [], periods: [], days: [] });
+});
+learningRouter.get("/timetable/my-children", async (req, res) => {
+  const rows = await query<any>(
+    "SELECT s.id,s.class_id,s.section_id,concat_ws(' ',s.first_name,s.last_name) student_name FROM parent_guardians g JOIN students s ON s.guardian_id=g.id WHERE g.user_id=$1 AND s.school_id=$2",
+    [(req as AuthenticatedRequest).user.id, schoolId(req)],
+  );
+  res.json(await Promise.all(rows.rows.map(async (student: any) => ({ ...await timetableGrid(req, student.class_id, null, student.section_id), student_id: student.id, student_name: student.student_name }))));
+});
 
 const bookFields=["title","author","isbn","publisher","edition","category","language","shelf_location","description","cover_url","total_copies","available_copies","is_active"];
 learningRouter.get("/library/categories",async(req,res)=>{const r=await query<{category:string}>("SELECT DISTINCT category FROM library_books WHERE school_id=$1 AND category IS NOT NULL ORDER BY category",[schoolId(req)]);res.json(r.rows.map(x=>x.category));});

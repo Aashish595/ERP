@@ -59,6 +59,43 @@ type StudentItem = {
 
 const ADMIN_ROLES = new Set(["SUPER_ADMIN", "SCHOOL_OWNER", "SCHOOL_ADMIN"]);
 
+const EDITABLE_FIELDS_BY_ROLE: Record<string, string[]> = {
+  SUPER_ADMIN: ["full_name", "email", "phone"],
+  SCHOOL_OWNER: ["full_name", "email", "phone"],
+  SCHOOL_ADMIN: ["full_name", "email", "phone"],
+  TEACHER: ["phone", "address"],
+  STUDENT: ["phone", "address", "photo_url"],
+  PARENT: ["phone", "alternate_phone", "occupation", "address"],
+};
+
+function normalizeProfileResponse(value: unknown): ProfileResponse {
+  const raw = value as AnyRecord | null;
+  const account = raw?.account ?? raw?.user;
+  if (!account || typeof account.role !== "string") {
+    throw new Error("Profile API returned an invalid account response.");
+  }
+
+  let roleData = raw?.role_data;
+  if (!roleData || typeof roleData !== "object") {
+    const linked = raw?.profile ?? null;
+    roleData = account.role === "STUDENT"
+      ? { student: linked }
+      : account.role === "TEACHER"
+        ? { teacher: linked, assigned_classes: [], subject_assignments: [], class_teacher_assignments: [] }
+        : account.role === "PARENT"
+          ? { guardian: linked, children: [], children_count: 0 }
+          : { classes: [], teachers: [], subjects: [] };
+  }
+
+  return {
+    account,
+    school: raw?.school ?? null,
+    editable_fields: Array.isArray(raw?.editable_fields) ? raw.editable_fields : (EDITABLE_FIELDS_BY_ROLE[account.role] ?? []),
+    summary: raw?.summary && typeof raw.summary === "object" ? raw.summary : {},
+    role_data: roleData,
+  };
+}
+
 function formatRole(value?: string | null) {
   return String(value || "")
     .toLowerCase()
@@ -192,7 +229,7 @@ function TeacherPhotoUploader({ profile, onSaved }: { profile: ProfileResponse; 
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const updated = await apiUpload<ProfileResponse>("/profile/teacher/photo", formData, { method: "POST" });
+      const updated = normalizeProfileResponse(await apiUpload<unknown>("/profile/teacher/photo", formData, { method: "POST" }));
       onSaved(updated);
       // Persist the new photo_url into saved auth so navbar/sidebar update immediately
       if (updated.role_data?.teacher?.photo_url) {
@@ -251,10 +288,10 @@ function EditableProfile({ profile, onSaved }: { profile: ProfileResponse; onSav
     setMessage(null);
     try {
       const payload = Object.fromEntries(profile.editable_fields.map((field) => [field, form[field] ?? ""]));
-      const updated = await apiFetch<ProfileResponse>("/profile", {
+      const updated = normalizeProfileResponse(await apiFetch<unknown>("/profile", {
         method: "PUT",
         body: JSON.stringify(payload),
-      });
+      }));
       onSaved(updated);
       setMessage("Profile updated successfully.");
     } catch (err) {
@@ -615,7 +652,7 @@ export default function ProfilePage() {
     setLoading(true);
     setError(null);
     try {
-      setProfile(await apiFetch<ProfileResponse>("/profile"));
+      setProfile(normalizeProfileResponse(await apiFetch<unknown>("/profile")));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load profile.");
     } finally {

@@ -81,6 +81,33 @@ function displaySlot(entry: TimetableEntry) {
   return `${entry.day_name || "Day"} · ${entry.period_name || "Period"}`;
 }
 
+function arrayOrEmpty<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function normalizeTimetableMeta(value: Partial<TimetableMeta> | null | undefined): TimetableMeta {
+  return {
+    classes: arrayOrEmpty(value?.classes),
+    sections: arrayOrEmpty<any>(value?.sections).map((item) => ({ ...item, extra: item.extra ?? (item.class_id == null ? null : String(item.class_id)) })),
+    subjects: arrayOrEmpty<any>(value?.subjects).map((item) => ({ ...item, extra: item.extra ?? (item.class_id == null ? null : String(item.class_id)) })),
+    teachers: arrayOrEmpty(value?.teachers),
+    periods: arrayOrEmpty(value?.periods),
+    days: arrayOrEmpty(value?.days),
+    academic_sessions: arrayOrEmpty(value?.academic_sessions),
+    current_academic_session_id: value?.current_academic_session_id ?? null,
+  };
+}
+
+function normalizeTimetableGrid(value: Partial<TimetableGrid> | null | undefined, mode: "class" | "teacher"): TimetableGrid {
+  return {
+    mode: value?.mode || mode,
+    title: value?.title || (mode === "class" ? "Class Timetable" : "Teacher Timetable"),
+    entries: arrayOrEmpty(value?.entries),
+    periods: arrayOrEmpty(value?.periods),
+    days: arrayOrEmpty(value?.days),
+  };
+}
+
 export default function TimetableManager() {
   const [tab, setTab] = useState<"entries" | "periods" | "days" | "views">("entries");
   const [meta, setMeta] = useState<TimetableMeta | null>(null);
@@ -138,9 +165,10 @@ export default function TimetableManager() {
         apiFetch<TimetableMeta>("/timetable/meta"),
         apiFetch<TimetableEntry[]>(`/timetable/entries${params.toString() ? `?${params.toString()}` : ""}`),
       ]);
-      setMeta(metaData);
-      setEntries(entryData);
-      setEntryForm((prev) => ({ ...prev, academic_session_id: prev.academic_session_id || String(metaData.current_academic_session_id || "") }));
+      const normalizedMeta = normalizeTimetableMeta(metaData);
+      setMeta(normalizedMeta);
+      setEntries(arrayOrEmpty(entryData));
+      setEntryForm((prev) => ({ ...prev, academic_session_id: prev.academic_session_id || String(normalizedMeta.current_academic_session_id || "") }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load timetable");
     } finally {
@@ -315,11 +343,11 @@ export default function TimetableManager() {
         const params = new URLSearchParams({ class_id: viewClassId });
         if (viewSectionId) params.set("section_id", viewSectionId);
         const data = await apiFetch<TimetableGrid>(`/timetable/view/class?${params.toString()}`);
-        setGrid(data);
+        setGrid(normalizeTimetableGrid(data, "class"));
       } else {
         if (!viewTeacherId) throw new Error("Select a teacher first");
         const data = await apiFetch<TimetableGrid>(`/timetable/view/teacher?teacher_id=${viewTeacherId}`);
-        setGrid(data);
+        setGrid(normalizeTimetableGrid(data, "teacher"));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load timetable view");

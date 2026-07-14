@@ -20,10 +20,13 @@ function slotText(entry?: TimetableEntry, mode?: string) {
 }
 
 export default function TimetableGridView({ grid }: { grid: TimetableGrid }) {
+  const entries = Array.isArray(grid?.entries) ? grid.entries : [];
+  const days = Array.isArray(grid?.days) ? grid.days : [];
+  const periods = Array.isArray(grid?.periods) ? grid.periods : [];
   const entriesBySlot = new Map<string, TimetableEntry>();
-  grid.entries.forEach((entry) => entriesBySlot.set(`${entry.day_id}-${entry.period_id}`, entry));
+  entries.forEach((entry) => entriesBySlot.set(`${entry.day_id}-${entry.period_id}`, entry));
 
-  if (!grid.days.length || !grid.periods.length) {
+  if (!days.length || !periods.length) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
         Add active days and periods first to build the timetable grid.
@@ -37,7 +40,7 @@ export default function TimetableGridView({ grid }: { grid: TimetableGrid }) {
         <thead className="bg-slate-50">
           <tr>
             <th className="sticky left-0 z-10 bg-slate-50 px-4 py-3 text-left font-semibold text-slate-700">Day</th>
-            {grid.periods.map((period) => (
+            {periods.map((period) => (
               <th key={period.id} className="min-w-44 px-4 py-3 text-left font-semibold text-slate-700">
                 <div>{period.name}</div>
                 <div className="text-xs font-normal text-slate-500">
@@ -48,10 +51,10 @@ export default function TimetableGridView({ grid }: { grid: TimetableGrid }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {grid.days.map((day) => (
+          {days.map((day) => (
             <tr key={day.id}>
               <td className="sticky left-0 z-10 bg-white px-4 py-4 font-semibold text-slate-800">{day.display_name}</td>
-              {grid.periods.map((period) => {
+              {periods.map((period) => {
                 const entry = entriesBySlot.get(`${day.id}-${period.id}`);
                 return (
                   <td key={period.id} className={`align-top px-4 py-4 ${period.is_break ? "bg-amber-50" : ""}`}>

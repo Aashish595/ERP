@@ -45,7 +45,21 @@ export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
-  app.use(pinoHttp({ autoLogging: { ignore: (req: { url?: string }) => req.url === "/health" } }));
+  app.use(pinoHttp({
+    autoLogging: {
+      ignore: (req: { method?: string; url?: string }) => req.url === "/health" || req.method === "OPTIONS",
+    },
+    redact: {
+      paths: ["req.headers.authorization", "req.headers.cookie", "res.headers.set-cookie"],
+      censor: "[REDACTED]",
+    },
+    serializers: {
+      req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+      res: (res) => ({ statusCode: res.statusCode }),
+    },
+    customSuccessMessage: (req, res, responseTime) => `${req.method} ${(req as any).originalUrl || req.url} -> ${res.statusCode} (${Math.round(responseTime)} ms)`,
+    customErrorMessage: (req, res, error) => `${req.method} ${(req as any).originalUrl || req.url} -> ${res.statusCode} (${error.message})`,
+  }));
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(cors({
     origin(origin, callback) {
