@@ -1,34 +1,68 @@
 services:
   - type: web
-    name: school-erp-express-ai
+    name: school-erp-api-YOURNAME
     runtime: docker
     dockerfilePath: ./Dockerfile.free
+    region: singapore
     plan: free
     healthCheckPath: /health
+
     envVars:
       - key: NODE_ENV
         value: production
+
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_SSL
         value: "true"
+      - key: DB_POOL_MAX
+        value: "5"
+
       - key: JWT_SECRET
         generateValue: true
       - key: AI_SERVICE_TOKEN
         generateValue: true
+
       - key: CORS_ORIGINS
         sync: false
       - key: FRONTEND_URL
         sync: false
       - key: PUBLIC_API_URL
         sync: false
+
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: none
+
+      - key: REDIS_REQUIRED
+        value: "false"
+
       - key: OPENROUTER_API_KEY
         sync: false
       - key: AI_MODEL
         value: openai/gpt-4.1-mini
-      - key: REDIS_REQUIRED
-        value: "false"
-      - key: COOKIE_SECURE
-        value: "true"
+
       - key: EMAIL_OTP_DEBUG
+        value: "false"
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: "2525"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: SMTP_FROM_NAME
+        value: School ERP
+      - key: SMTP_USE_TLS
         value: "true"
+
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
