@@ -46,6 +46,41 @@ declare global {
   }
 }
 
+function arrayOrEmpty<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function normalizeFeePortal(value: unknown): FeePortalResponse {
+  const data = objectOrEmpty(value);
+  const summary = objectOrEmpty(data.summary);
+
+  return {
+    role: String(data.role ?? ""),
+    summary: {
+      total_records: Number(summary.total_records ?? 0),
+      pending_records: Number(summary.pending_records ?? 0),
+      partial_records: Number(summary.partial_records ?? 0),
+      paid_records: Number(summary.paid_records ?? 0),
+      overdue_records: Number(summary.overdue_records ?? 0),
+      total_billable: Number(summary.total_billable ?? 0),
+      total_paid: Number(summary.total_paid ?? 0),
+      total_pending: Number(summary.total_pending ?? 0),
+      today_collection: Number(summary.today_collection ?? 0),
+      month_collection: Number(summary.month_collection ?? 0),
+      month_expense: Number(summary.month_expense ?? 0),
+      net_month_collection: Number(summary.net_month_collection ?? 0),
+    },
+    records: arrayOrEmpty<FeePortalResponse["records"][number]>(data.records),
+    payments: arrayOrEmpty<FeePortalResponse["payments"][number]>(data.payments),
+  };
+}
+
 function money(value?: number | null) {
   return `₹${Number(value || 0).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
@@ -81,7 +116,7 @@ function StudentFeeView() {
     setLoading(true);
     setError("");
     try {
-      setData(await apiFetch<FeePortalResponse>("/fees/portal"));
+      setData(normalizeFeePortal(await apiFetch<FeePortalResponse>("/fees/portal")));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load fee records",

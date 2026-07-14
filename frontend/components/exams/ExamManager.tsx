@@ -6,7 +6,7 @@ import { CalendarDays, CheckCircle2, Clock, Edit2, Eye, Loader2, MapPin, Plus, R
 import { AppSection } from "@/components/CrudManager";
 import { Button, Card, Input, Label, Textarea } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
-import type { ClassResult, Exam, ExamMark, ExamMeta, ExamSubject, ExamTimetableItem, SubjectResult } from "@/types";
+import type { ClassResult, Exam, ExamMark, ExamMeta, ExamMetaItem, ExamSubject, ExamTimetableItem, SubjectResult } from "@/types";
 
 type ExamForm = {
   name: string;
@@ -60,6 +60,91 @@ const emptySubject: SubjectForm = {
   room: "",
   timetable_note: "",
 };
+
+function arrayOrEmpty<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function normalizeMetaItems(value: unknown, fallbackExtra?: string): ExamMetaItem[] {
+  return arrayOrEmpty<Record<string, unknown>>(value).map((item) => ({
+    id: Number(item.id),
+    name: String(item.name ?? ""),
+    extra:
+      item.extra !== undefined && item.extra !== null
+        ? String(item.extra)
+        : fallbackExtra && item[fallbackExtra] !== undefined && item[fallbackExtra] !== null
+          ? String(item[fallbackExtra])
+          : null,
+  }));
+}
+
+function normalizeExamMeta(value: unknown): ExamMeta {
+  const data = objectOrEmpty(value);
+  const sessionId = Number(data.current_academic_session_id);
+
+  return {
+    classes: normalizeMetaItems(data.classes),
+    sections: normalizeMetaItems(data.sections, "class_id"),
+    subjects: normalizeMetaItems(data.subjects, "class_id"),
+    teachers: normalizeMetaItems(data.teachers, "employee_id"),
+    academic_sessions: normalizeMetaItems(data.academic_sessions),
+    current_academic_session_id: Number.isInteger(sessionId) && sessionId > 0 ? sessionId : null,
+  };
+}
+
+function normalizeExams(value: unknown): Exam[] {
+  return arrayOrEmpty<Exam & { subject_count?: number }>(value).map((exam) => ({
+    ...exam,
+    subjects_count: Number(exam.subjects_count ?? exam.subject_count ?? 0),
+    marks_entered_count: Number(exam.marks_entered_count ?? 0),
+  }));
+}
+
+function normalizeSummary(value: unknown): Record<string, number | string> {
+  return Object.fromEntries(
+    Object.entries(objectOrEmpty(value)).filter((entry): entry is [string, number | string] =>
+      typeof entry[1] === "number" || typeof entry[1] === "string"
+    )
+  );
+}
+
+function normalizeClassResult(value: unknown, fallbackExam: Exam | null): ClassResult | null {
+  const data = objectOrEmpty(value);
+  const exam = Object.keys(objectOrEmpty(data.exam)).length ? (data.exam as Exam) : fallbackExam;
+  if (!exam) return null;
+
+  return {
+    exam,
+    results: arrayOrEmpty<ClassResult["results"][number]>(data.results ?? data.students),
+    summary: normalizeSummary(data.summary),
+  };
+}
+
+function normalizeSubjectResult(
+  value: unknown,
+  fallbackExam: Exam | null,
+  fallbackSubject: ExamSubject | null
+): SubjectResult | null {
+  const data = objectOrEmpty(value);
+  const exam = Object.keys(objectOrEmpty(data.exam)).length ? (data.exam as Exam) : fallbackExam;
+  const examSubject = Object.keys(objectOrEmpty(data.exam_subject)).length
+    ? (data.exam_subject as ExamSubject)
+    : fallbackSubject;
+  if (!exam || !examSubject) return null;
+
+  return {
+    exam,
+    exam_subject: examSubject,
+    results: arrayOrEmpty<ExamMark>(data.results ?? data.students),
+    summary: normalizeSummary(data.summary),
+  };
+}
 
 function SelectBox({ value, onChange, children, required = false }: { value: string; onChange: (value: string) => void; children: React.ReactNode; required?: boolean }) {
   return (
@@ -184,10 +269,12 @@ export default function ExamManager({ mode = "admin" }: { mode?: "admin" | "teac
       const params = new URLSearchParams();
       if (search.trim()) params.set("q", search.trim());
       if (statusFilter) params.set("status", statusFilter);
-      const [metaData, examData] = await Promise.all([
+      const [rawMetaData, rawExamData] = await Promise.all([
         apiFetch<ExamMeta>("/exams/meta"),
         apiFetch<Exam[]>(`/exams${params.toString() ? `?${params.toString()}` : ""}`),
       ]);
+      const metaData = normalizeExamMeta(rawMetaData);
+      const examData = normalizeExams(rawExamData);
       setMeta(metaData);
       setExams(examData);
       setExamForm((prev) => ({ ...prev, academic_session_id: prev.academic_session_id || String(metaData.current_academic_session_id || "") }));
@@ -212,7 +299,7 @@ export default function ExamManager({ mode = "admin" }: { mode?: "admin" | "teac
     }
     setSubjectListLoading(true);
     try {
-      const data = await apiFetch<ExamSubject[]>(`/exams/${examId}/subjects`);
+      const data = arrayOrEmpty<ExamSubject>(await apiFetch<ExamSubject[]>(`/exams/${examId}/subjects`));
       setExamSubjects(data);
       setSelectedSubjectId((prev) => (prev && data.some((item) => String(item.id) === prev) ? prev : data.length ? String(data[0].id) : ""));
     } catch (err) {
@@ -229,7 +316,7 @@ export default function ExamManager({ mode = "admin" }: { mode?: "admin" | "teac
     }
     setTimetableLoading(true);
     try {
-      const data = await apiFetch<ExamTimetableItem[]>(`/exams/${selectedExamId}/timetable`);
+      const data = arrayOrEmpty<ExamTimetableItem>(await apiFetch<ExamTimetableItem[]>(`/exams/${selectedExamId}/timetable`));
       setExamTimetable(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load exam timetable");
@@ -246,7 +333,7 @@ export default function ExamManager({ mode = "admin" }: { mode?: "admin" | "teac
     }
     setMarksLoading(true);
     try {
-      const data = await apiFetch<ExamMark[]>(`/exams/${selectedExamId}/marks?exam_subject_id=${selectedSubjectId}`);
+      const data = arrayOrEmpty<ExamMark>(await apiFetch<ExamMark[]>(`/exams/${selectedExamId}/marks?exam_subject_id=${selectedSubjectId}`));
       setMarks(data);
       const drafts: Record<number, MarkDraft> = {};
       data.forEach((item) => {
@@ -274,10 +361,10 @@ export default function ExamManager({ mode = "admin" }: { mode?: "admin" | "teac
     setReportsLoading(true);
     try {
       const classData = await apiFetch<ClassResult>(`/exams/${selectedExamId}/class-result`);
-      setClassResult(classData);
+      setClassResult(normalizeClassResult(classData, selectedExam));
       if (selectedSubjectId) {
         const subjectData = await apiFetch<SubjectResult>(`/exams/${selectedExamId}/subject-result/${selectedSubjectId}`);
-        setSubjectResult(subjectData);
+        setSubjectResult(normalizeSubjectResult(subjectData, selectedExam, selectedSubject));
       } else {
         setSubjectResult(null);
       }
@@ -597,7 +684,7 @@ export default function ExamManager({ mode = "admin" }: { mode?: "admin" | "teac
                   <Label>Academic Session</Label>
                   <SelectBox value={examForm.academic_session_id} onChange={(value) => setExamForm({ ...examForm, academic_session_id: value })}>
                     <option value="">Latest / Current</option>
-                    {meta?.academic_sessions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    {(meta?.academic_sessions ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                   </SelectBox>
                 </div>
               </div>
@@ -606,7 +693,7 @@ export default function ExamManager({ mode = "admin" }: { mode?: "admin" | "teac
                   <Label>Class</Label>
                   <SelectBox value={examForm.class_id} onChange={(value) => setExamForm({ ...examForm, class_id: value, section_id: "" })} required>
                     <option value="">Select class</option>
-                    {meta?.classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    {(meta?.classes ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                   </SelectBox>
                 </div>
                 <div>
@@ -714,7 +801,7 @@ export default function ExamManager({ mode = "admin" }: { mode?: "admin" | "teac
                 <Label>Teacher / Examiner</Label>
                 <SelectBox value={subjectForm.teacher_id} onChange={(value) => setSubjectForm({ ...subjectForm, teacher_id: value })}>
                   <option value="">Not assigned</option>
-                  {meta?.teachers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  {(meta?.teachers ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </SelectBox>
               </div>
               <div className="grid gap-4 md:grid-cols-2">

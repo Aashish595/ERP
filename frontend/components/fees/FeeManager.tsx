@@ -13,6 +13,7 @@ import type {
   FeeDashboard,
   FeeExpense,
   FeeMeta,
+  FeeMetaItem,
   FeePayment,
   FeeReceipt,
   FeeStructure,
@@ -112,6 +113,78 @@ const emptyRecordFilters: RecordFilters = {
   status: "",
   search: "",
 };
+
+function arrayOrEmpty<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function normalizeMetaItems(value: unknown, fallbackExtra?: string): FeeMetaItem[] {
+  return arrayOrEmpty<Record<string, unknown>>(value).map((item) => ({
+    id: Number(item.id),
+    name: String(item.name ?? ""),
+    extra:
+      item.extra !== undefined && item.extra !== null
+        ? String(item.extra)
+        : fallbackExtra && item[fallbackExtra] !== undefined && item[fallbackExtra] !== null
+          ? String(item[fallbackExtra])
+          : null,
+  }));
+}
+
+function normalizeFeeMeta(value: unknown): FeeMeta {
+  const data = objectOrEmpty(value);
+  const sessionId = Number(data.current_academic_session_id);
+
+  return {
+    categories: normalizeMetaItems(data.categories, "code"),
+    structures: normalizeMetaItems(data.structures, "amount"),
+    classes: normalizeMetaItems(data.classes, "code"),
+    sections: normalizeMetaItems(data.sections, "class_id"),
+    students: normalizeMetaItems(data.students, "admission_no"),
+    academic_sessions: normalizeMetaItems(data.academic_sessions),
+    current_academic_session_id: Number.isInteger(sessionId) && sessionId > 0 ? sessionId : null,
+  };
+}
+
+function normalizeDashboard(value: unknown): FeeDashboard {
+  const data = objectOrEmpty(value);
+  return {
+    total_records: Number(data.total_records ?? 0),
+    pending_records: Number(data.pending_records ?? 0),
+    partial_records: Number(data.partial_records ?? 0),
+    paid_records: Number(data.paid_records ?? 0),
+    overdue_records: Number(data.overdue_records ?? 0),
+    total_billable: Number(data.total_billable ?? 0),
+    total_paid: Number(data.total_paid ?? 0),
+    total_pending: Number(data.total_pending ?? 0),
+    today_collection: Number(data.today_collection ?? 0),
+    month_collection: Number(data.month_collection ?? 0),
+    month_expense: Number(data.month_expense ?? 0),
+    net_month_collection: Number(data.net_month_collection ?? 0),
+  };
+}
+
+function normalizeDailyReport(value: unknown): DailyCollectionReport {
+  const data = objectOrEmpty(value);
+  const rawModes = objectOrEmpty(data.payment_mode_summary);
+  const paymentModeSummary = Object.fromEntries(
+    Object.entries(rawModes).map(([mode, amount]) => [mode, Number(amount ?? 0)])
+  );
+
+  return {
+    report_date: String(data.report_date ?? today()),
+    total_collection: Number(data.total_collection ?? 0),
+    total_payments: Number(data.total_payments ?? 0),
+    payment_mode_summary: paymentModeSummary,
+    payments: arrayOrEmpty<FeePayment>(data.payments),
+  };
+}
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -343,8 +416,8 @@ export default function FeeManager() {
       apiFetch<DailyCollectionReport>(`/fees/daily-collection?${query}${separator}report_date=${reportDate}`),
     ]);
 
-    setDashboard(dashboardData);
-    setDailyReport(reportData);
+    setDashboard(normalizeDashboard(dashboardData));
+    setDailyReport(normalizeDailyReport(reportData));
     markLoaded("dashboard");
   };
 
@@ -365,16 +438,16 @@ export default function FeeManager() {
       if (tab === "dashboard") {
         await loadDashboardData();
       } else if (tab === "categories") {
-        setCategories(await apiFetch<FeeCategory[]>("/fees/categories"));
+        setCategories(arrayOrEmpty<FeeCategory>(await apiFetch<FeeCategory[]>("/fees/categories")));
         markLoaded(tab);
       } else if (tab === "structures") {
-        setStructures(await apiFetch<FeeStructure[]>(withQuery("/fees/structures")));
+        setStructures(arrayOrEmpty<FeeStructure>(await apiFetch<FeeStructure[]>(withQuery("/fees/structures"))));
         markLoaded(tab);
       } else if (tab === "assign") {
-        setAssignments(await apiFetch<FeeAssignment[]>(withQuery("/fees/assignments")));
+        setAssignments(arrayOrEmpty<FeeAssignment>(await apiFetch<FeeAssignment[]>(withQuery("/fees/assignments"))));
         markLoaded(tab);
       } else if (tab === "records") {
-        setRecords(await apiFetch<StudentFeeRecord[]>(recordsPath()));
+        setRecords(arrayOrEmpty<StudentFeeRecord>(await apiFetch<StudentFeeRecord[]>(recordsPath())));
         markLoaded(tab);
       } else if (tab === "payments") {
         const [recordsData, paymentsData] = await Promise.all([
@@ -382,11 +455,11 @@ export default function FeeManager() {
           apiFetch<FeePayment[]>(withQuery("/fees/payments", "limit=100")),
         ]);
 
-        setRecords(recordsData);
-        setPayments(paymentsData);
+        setRecords(arrayOrEmpty<StudentFeeRecord>(recordsData));
+        setPayments(arrayOrEmpty<FeePayment>(paymentsData));
         markLoaded(tab);
       } else if (tab === "expenses") {
-        setExpenses(await apiFetch<FeeExpense[]>(withQuery("/fees/expenses", "limit=100")));
+        setExpenses(arrayOrEmpty<FeeExpense>(await apiFetch<FeeExpense[]>(withQuery("/fees/expenses", "limit=100"))));
         markLoaded(tab);
       }
     } catch (err) {
@@ -401,7 +474,7 @@ export default function FeeManager() {
     setError("");
 
     try {
-      const metaData = await apiFetch<FeeMeta>("/fees/meta");
+      const metaData = normalizeFeeMeta(await apiFetch<FeeMeta>("/fees/meta"));
 
       setMeta(metaData);
 
@@ -469,9 +542,9 @@ export default function FeeManager() {
       const query = currentSessionQuery();
       const separator = query ? "&" : "";
 
-      setDailyReport(
+      setDailyReport(normalizeDailyReport(
         await apiFetch<DailyCollectionReport>(`/fees/daily-collection?${query}${separator}report_date=${reportDate}`)
-      );
+      ));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load daily report");
     } finally {
@@ -493,7 +566,7 @@ export default function FeeManager() {
     setError("");
 
     try {
-      setRecords(await apiFetch<StudentFeeRecord[]>(recordsPath(emptyRecordFilters)));
+      setRecords(arrayOrEmpty<StudentFeeRecord>(await apiFetch<StudentFeeRecord[]>(recordsPath(emptyRecordFilters))));
       markLoaded("records");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load fee records");
@@ -763,8 +836,8 @@ export default function FeeManager() {
   };
 
   const pendingRecords = records.filter((record) => ["PENDING", "PARTIAL", "OVERDUE"].includes(record.status));
-  const filteredSections = meta?.sections.filter((section) => !assignmentForm.class_id || section.extra === assignmentForm.class_id) || [];
-  const recordFilteredSections = meta?.sections.filter((section) => !recordFilters.class_id || section.extra === recordFilters.class_id) || [];
+  const filteredSections = (meta?.sections ?? []).filter((section) => !assignmentForm.class_id || section.extra === assignmentForm.class_id);
+  const recordFilteredSections = (meta?.sections ?? []).filter((section) => !recordFilters.class_id || section.extra === recordFilters.class_id);
   const activeRecordFilterCount = Object.values(recordFilters).filter((value) => value.trim() !== "").length;
 
   const currentTabRefreshing = Boolean(tabLoading[activeTab]);
@@ -966,7 +1039,7 @@ export default function FeeManager() {
                       required
                     >
                       <option value="">Select category</option>
-                      {meta?.categories.map((item) => (
+                      {(meta?.categories ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
                         </option>
@@ -981,7 +1054,7 @@ export default function FeeManager() {
                       onChange={(value) => setStructureForm((prev) => ({ ...prev, academic_session_id: value }))}
                     >
                       <option value="">Optional</option>
-                      {meta?.academic_sessions.map((item) => (
+                      {(meta?.academic_sessions ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
                         </option>
@@ -1076,7 +1149,7 @@ export default function FeeManager() {
                       required
                     >
                       <option value="">Select fee</option>
-                      {meta?.structures.map((item) => (
+                      {(meta?.structures ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name} {item.extra ? `· ${item.extra}` : ""}
                         </option>
@@ -1091,7 +1164,7 @@ export default function FeeManager() {
                       onChange={(value) => setAssignmentForm((prev) => ({ ...prev, academic_session_id: value }))}
                     >
                       <option value="">Optional</option>
-                      {meta?.academic_sessions.map((item) => (
+                      {(meta?.academic_sessions ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
                         </option>
@@ -1125,7 +1198,7 @@ export default function FeeManager() {
                       }
                     >
                       <option value="">No class</option>
-                      {meta?.classes.map((item) => (
+                      {(meta?.classes ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
                         </option>
@@ -1162,7 +1235,7 @@ export default function FeeManager() {
                       }
                     >
                       <option value="">No individual student</option>
-                      {meta?.students.map((item) => (
+                      {(meta?.students ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name} · {item.extra}
                         </option>
@@ -1254,7 +1327,7 @@ export default function FeeManager() {
                       required
                     >
                       <option value="">Select student</option>
-                      {meta?.students.map((item) => (
+                      {(meta?.students ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name} · {item.extra}
                         </option>
@@ -1269,7 +1342,7 @@ export default function FeeManager() {
                       onChange={(value) => setRecordForm((prev) => ({ ...prev, fee_structure_id: value }))}
                     >
                       <option value="">Optional</option>
-                      {meta?.structures.map((item) => (
+                      {(meta?.structures ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
                         </option>
@@ -1284,7 +1357,7 @@ export default function FeeManager() {
                       onChange={(value) => setRecordForm((prev) => ({ ...prev, academic_session_id: value }))}
                     >
                       <option value="">Optional</option>
-                      {meta?.academic_sessions.map((item) => (
+                      {(meta?.academic_sessions ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
                         </option>
@@ -1393,7 +1466,7 @@ export default function FeeManager() {
                       }
                     >
                       <option value="">All classes</option>
-                      {meta?.classes.map((item) => (
+                      {(meta?.classes ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
                         </option>
@@ -1429,7 +1502,7 @@ export default function FeeManager() {
                       }
                     >
                       <option value="">All categories</option>
-                      {meta?.categories.map((item) => (
+                      {(meta?.categories ?? []).map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
                         </option>
