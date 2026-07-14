@@ -3,7 +3,9 @@
   "version": "10.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
@@ -24,7 +26,7 @@
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
-    "nodemailer": "^7.0.13",
+    "nodemailer": "9.0.3",
     "pg": "^8.16.3",
     "pino-http": "^11.0.0",
     "zod": "^4.1.12"

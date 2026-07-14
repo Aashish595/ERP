@@ -6,7 +6,7 @@ COPY server/tsconfig.json ./
 COPY server/src ./src
 RUN npm run build && npm prune --omit=dev
 
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim-bookworm AS runtime
 ENV NODE_ENV=production PORT=10000 AI_SERVICE_URL=http://127.0.0.1:8001 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY --from=node-build /usr/local/bin/node /usr/local/bin/node

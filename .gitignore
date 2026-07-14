@@ -1,9 +1,9 @@
 # Dependencies
 node_modules/
 .pnp/
-.pnp.js
+.pnp.*
 
-# Next.js / React
+# Next.js / React / TypeScript
 .next/
 out/
 build/
@@ -20,18 +20,18 @@ __pycache__/
 venv/
 env/
 ENV/
-info.txt
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
+info.txt
 
-# Environment files
+# Environment files and secrets
 .env
 .env.*
 !.env.example
-!.env.local.example
+!.env.*.example
 
 # Logs
 logs/
@@ -41,50 +41,39 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Database / local files
+# Local databases
 *.sqlite
 *.sqlite3
 *.db
 local.db
 
-# Uploads / generated files
+# Uploaded and generated media
 uploads/
 media/
 static/uploads/
-backend/uploads/
-frontend/uploads/
 
-# OS / editor
+# Hosting CLI metadata
+.vercel/
+.railway/
+
+# Package manager caches
+.npm/
+.yarn/
+.pnpm-store/
+
+# Docker local overrides
+docker-compose.override.yml
+
+# Editor / operating system
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-# Package manager cache
-.npm/
-.yarn/
-.pnpm-store/
-
-# Docker / local overrides
-docker-compose.override.yml
-
-# Misc
+# Temporary files
 .cache/
 tmp/
 temp/
 
-server/node_modules/
-server/dist/
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-ai-service/.venv/
-**/__pycache__/
-*.pyc
-.env
-server/.env
-ai-service/.env
-frontend/.env.local
-uploads/
-*.log
-ERP-patch.zip
+# Local patch archives
+ERP-patch*.zip
