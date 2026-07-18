@@ -1,7 +1,8 @@
 import type { AuthResponse } from "@/types";
 import { clearCachedBranding } from "@/lib/branding";
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+export const API_BASE = configuredApiBase.replace(/\/+$/, "");
 const TOKEN_KEY = "erp_access_token";
 const AUTH_KEY = "erp_auth";
 const ACADEMIC_SESSION_KEY = "erp_selected_academic_session_id";
@@ -188,7 +189,9 @@ export async function refreshAccessToken(): Promise<string | null> {
 }
 
 function buildUrl(path: string) {
-  return path.startsWith("http://") || path.startsWith("https://") ? path : `${API_BASE}${path}`;
+  return path.startsWith("http://") || path.startsWith("https://")
+    ? path
+    : `${API_BASE}/${path.replace(/^\/+/, "")}`;
 }
 
 function shouldRefreshNotificationsAfterWrite(path: string) {
@@ -432,5 +435,5 @@ export async function apiUpload<T>(path: string, formData: FormData, options: Ap
 export function fileUrl(path?: string | null) {
   if (!path) return "";
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${API_BASE}${path}`;
+  return `${API_BASE}/${path.replace(/^\/+/, "")}`;
 }
