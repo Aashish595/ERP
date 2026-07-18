@@ -28,6 +28,12 @@ services:
         value: https://erp-sand-eight-92.vercel.app
       - key: PUBLIC_API_URL
         value: https://erp-lms.onrender.com
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALLBACK_URL
+        value: https://erp-lms.onrender.com/auth/google/callback
       - key: AI_SERVICE_URL
         value: http://127.0.0.1:8001
       - key: OPENROUTER_API_KEY

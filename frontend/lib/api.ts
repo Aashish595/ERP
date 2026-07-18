@@ -1,7 +1,7 @@
 import type { AuthResponse } from "@/types";
 import { clearCachedBranding } from "@/lib/branding";
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const TOKEN_KEY = "erp_access_token";
 const AUTH_KEY = "erp_auth";
 const ACADEMIC_SESSION_KEY = "erp_selected_academic_session_id";
@@ -154,6 +154,7 @@ function shouldAttemptRefresh(input: string) {
     path.startsWith("/auth/login") ||
     path.startsWith("/auth/refresh") ||
     path.startsWith("/auth/logout") ||
+    path.startsWith("/auth/google/") ||
     path.startsWith("/auth/register-school") ||
     path.startsWith("/auth/verify-school-registration") ||
     path.startsWith("/auth/forgot-password") ||

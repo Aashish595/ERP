@@ -8,7 +8,7 @@ The demo workspace uses fictional data created for portfolio review.
 
 | Field | Demo value |
 | --- | --- |
-| Application | `http://localhost:3000` |
+| Application | `http://localhost:3000/admin/login` |
 | Institution | Green Valley School |
 | School / College Code | `GVS001` |
 | Portal | Admin |
@@ -20,7 +20,7 @@ The demo workspace uses fictional data created for portfolio review.
 | Area | Capabilities |
 | --- | --- |
 | Institution management | Multi-tenant school and college registration, branding, academic sessions, departments, classes, sections, and subjects |
-| Users and access | Admin, teacher, student, and parent portals with tenant-aware role authorization |
+| Users and access | User-first student, teacher, and parent sign-in; separate administration login; verified Google sign-in for existing non-admin accounts; tenant-aware role authorization |
 | Academics | Attendance, homework, timetables, examinations, marks, report cards, and reports |
 | Learning management | Courses, lessons, enrollment, progress, assignments, submissions, quizzes, and summaries |
 | Finance | Fee structures, balances, payments, expenses, and optional Razorpay integration |
@@ -37,7 +37,7 @@ The demo workspace uses fictional data created for portfolio review.
 | AI service | FastAPI, Python |
 | Database | PostgreSQL |
 | Cache | Redis, optional |
-| Authentication | JWT access tokens and rotating refresh tokens |
+| Authentication | Password login, Google OAuth 2.0 with PKCE, JWT access tokens, and rotating refresh tokens |
 | Infrastructure | Docker Compose, Render, Vercel, Supabase |
 | Integrations | Cloudinary, Brevo SMTP, Razorpay, BigBlueButton, Telegram, OpenRouter/OpenAI |
 
@@ -62,6 +62,19 @@ The registration flow supports both `school` and `college` institution types. Sh
 Some internal tables, API paths, role constants, and interface labels still use legacy names such as `schools`, `school_id`, `SCHOOL_ADMIN`, and “School Profile.” These are implementation names and do not prevent college registration.
 
 The current scope does not include university-specific workflows such as faculties, credit systems, or semester transcripts.
+
+## Authentication and portal entry
+
+| Route | Intended users | Sign-in methods |
+| --- | --- | --- |
+| `/login` | Students, teachers, and parents | Registered login ID and password, or Google using the registered email |
+| `/admin/login` | School owners and administrators | Registered login ID and password |
+
+The backend determines the role after authentication. The interface does not let a user select or promote their own role.
+
+Google sign-in never creates an ERP account. The institution must create the student, teacher, or parent account first, and its registered email must exactly match a verified Google email. The first successful sign-in securely links the Google identity to that existing account. Administrator roles remain password-only in this version.
+
+The login page also checks `/health` as soon as it opens. When the free Render service is sleeping, a non-blocking message explains the delay and the requested password or Google sign-in continues automatically when the backend becomes available.
 
 ## Repository structure
 
@@ -111,7 +124,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. The local API runs at `http://127.0.0.1:8000`.
+Open `http://localhost:3000`. The local API runs at `http://localhost:8000`. Keep the same hostname in `NEXT_PUBLIC_API_BASE_URL` and `GOOGLE_CALLBACK_URL` so the temporary OAuth cookie is returned correctly.
 
 ## Database migrations
 
@@ -120,7 +133,7 @@ Database migrations are stored in `server/migrations/`. The combined Render cont
 Future database changes should use the next ordered migration filename:
 
 ```text
-server/migrations/003_feature_name.sql
+server/migrations/004_feature_name.sql
 ```
 
 Existing migrations that have already been applied to a shared database should not be renamed, deleted, or rewritten.
@@ -138,6 +151,7 @@ Existing migrations that have already been applied to a shared database should n
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=https://your-authorized-api.example
+NEXT_PUBLIC_BACKEND_WAKEUP_UI=true
 ```
 
 ### Render
@@ -147,9 +161,16 @@ CORS_ORIGINS=https://your-authorized-frontend.example
 FRONTEND_URL=https://your-authorized-frontend.example
 PUBLIC_API_URL=https://your-authorized-api.example
 AI_SERVICE_URL=http://127.0.0.1:8001
+GOOGLE_CLIENT_ID=your-google-web-client-id
+GOOGLE_CLIENT_SECRET=your-google-web-client-secret
+GOOGLE_CALLBACK_URL=https://your-authorized-api.example/auth/google/callback
 ```
 
-When `NEXT_PUBLIC_API_BASE_URL` is not set, the frontend falls back to `http://127.0.0.1:8000` for local development.
+Create a Google OAuth client with application type **Web application**. Add the exact backend callback URL shown above as an authorized redirect URI. For local testing, also add `http://localhost:8000/auth/google/callback`. Keep the client secret only in the backend environment; never add it to Vercel or a `NEXT_PUBLIC_*` variable.
+
+Set `NEXT_PUBLIC_BACKEND_WAKEUP_UI=false` after moving the API to an always-on host if the beta cold-start message is no longer needed.
+
+When `NEXT_PUBLIC_API_BASE_URL` is not set, the frontend falls back to `http://localhost:8000` for local development.
 
 ## Validation
 

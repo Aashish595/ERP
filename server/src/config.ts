@@ -2,6 +2,8 @@ import "dotenv/config";
 import { z } from "zod";
 
 const booleanFromString = z.string().optional().transform((value) => value === "true");
+const optionalString = z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).optional());
+const optionalUrl = z.preprocess((value) => value === "" ? undefined : value, z.string().url().optional());
 
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -22,6 +24,9 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default("http://localhost:3000"),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
   PUBLIC_API_URL: z.string().url().default("http://localhost:8000"),
+  GOOGLE_CLIENT_ID: optionalString,
+  GOOGLE_CLIENT_SECRET: optionalString,
+  GOOGLE_CALLBACK_URL: optionalUrl,
   AI_SERVICE_URL: z.string().url().default("http://localhost:8001"),
   AI_SERVICE_TOKEN: z.string().min(24),
   EMAIL_OTP_DEBUG: booleanFromString,

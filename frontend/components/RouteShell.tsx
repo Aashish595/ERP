@@ -7,6 +7,8 @@ import AppShell from "@/components/AppShell";
 const PUBLIC_ROUTES = new Set([
   "/",
   "/login",
+  "/admin/login",
+  "/auth/google/callback",
   "/register-school",
   "/forgot-password",
   "/reset-password",

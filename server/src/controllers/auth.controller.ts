@@ -7,6 +7,14 @@ import { query, transaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { sendEmail } from "../services/email.service.js";
 import {
+  createGoogleAuthorization,
+  exchangeGoogleAuthorizationCode,
+  GOOGLE_OAUTH_COOKIE,
+  googleOAuthCookieOptions,
+  isGoogleAuthEnabled,
+  verifyGoogleAuthorization,
+} from "../services/google-auth.service.js";
+import {
   newRefreshToken,
   refreshCookieOptions,
   requireAuth,
@@ -20,6 +28,19 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 const normalizeCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "");
 const normalizeLogin = (value: string) => value.trim().toLowerCase();
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "school";
+const adminRoles = new Set(["SUPER_ADMIN", "SCHOOL_OWNER", "SCHOOL_ADMIN"]);
+
+function frontendRedirect(path: string, params: Record<string, string>) {
+  const url = new URL(path, `${config.FRONTEND_URL.replace(/\/$/, "")}/`);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  return url.toString();
+}
+
+function googleErrorRedirect(error: unknown) {
+  if (error instanceof ApiError && error.status === 400) return "session_expired";
+  if (error instanceof ApiError && error.status >= 500) return "temporarily_unavailable";
+  return "google_failed";
+}
 
 const schoolRegistration = z.object({
   school_name: z.string().min(2).max(200),
@@ -147,6 +168,7 @@ authRouter.post("/login", async (req, res) => {
   const payload = z.object({
     school_code: z.string().min(2), login_id: z.string().optional().nullable(), email: z.email().optional().nullable(),
     password: z.string().min(1).max(72), selected_role: z.string().optional().nullable(),
+    portal: z.enum(["USER", "ADMIN"]).optional(),
   }).parse(req.body);
   const school = (await query<any>("SELECT * FROM schools WHERE school_code=$1 AND is_active=true LIMIT 1", [normalizeCode(payload.school_code)])).rows[0];
   const genericError = new ApiError(401, "Invalid school code, login ID, or password");
@@ -160,6 +182,12 @@ authRouter.post("/login", async (req, res) => {
   const user = result.rows[0];
   if (!user || !(await bcrypt.compare(payload.password, user.hashed_password))) throw genericError;
   if (!user.is_active) throw new ApiError(403, "Account is inactive. Contact your school admin.");
+  if (payload.portal === "ADMIN" && !adminRoles.has(user.role)) {
+    throw new ApiError(403, "Use the student, teacher, or parent login for this account");
+  }
+  if (payload.portal === "USER" && adminRoles.has(user.role)) {
+    throw new ApiError(403, "Use the separate administration login for this account");
+  }
   const groups: Record<string, string[]> = {
     ADMIN: ["SUPER_ADMIN", "SCHOOL_OWNER", "SCHOOL_ADMIN"], TEACHER: ["TEACHER"], STUDENT: ["STUDENT"], PARENT: ["PARENT"],
   };
@@ -167,6 +195,116 @@ authRouter.post("/login", async (req, res) => {
   if (selected && groups[selected] && !groups[selected].includes(user.role)) throw new ApiError(403, "Please select the correct portal tab for this account");
   await query("UPDATE users SET last_login_at=NOW(),failed_login_attempts=0 WHERE id=$1", [user.id]);
   delete user.hashed_password;
+  res.json(await issueAuth(user, req, res));
+});
+
+authRouter.get("/google/status", (_req, res) => {
+  res.json({ enabled: isGoogleAuthEnabled() });
+});
+
+authRouter.get("/google/start", async (req, res) => {
+  try {
+    const { school_code: rawSchoolCode } = z.object({ school_code: z.string().min(2).max(40) }).parse(req.query);
+    const schoolCode = normalizeCode(rawSchoolCode);
+    const school = (await query<{ school_code: string }>(
+      "SELECT school_code FROM schools WHERE school_code=$1 AND is_active=true LIMIT 1",
+      [schoolCode],
+    )).rows[0];
+    if (!school) return res.redirect(frontendRedirect("/login", { oauth_error: "invalid_school" }));
+
+    const authorization = createGoogleAuthorization(school.school_code);
+    res.cookie(GOOGLE_OAUTH_COOKIE, authorization.cookie, googleOAuthCookieOptions());
+    return res.redirect(authorization.authorizationUrl);
+  } catch (error) {
+    return res.redirect(frontendRedirect("/login", { oauth_error: googleErrorRedirect(error) }));
+  }
+});
+
+authRouter.get("/google/callback", async (req, res) => {
+  const clearCookie = () => res.clearCookie(GOOGLE_OAUTH_COOKIE, {
+    httpOnly: true,
+    secure: config.COOKIE_SECURE,
+    sameSite: "lax",
+    path: "/auth/google",
+  });
+
+  try {
+    if (req.query.error) {
+      clearCookie();
+      return res.redirect(frontendRedirect("/login", { oauth_error: "access_denied" }));
+    }
+
+    const { code, state } = z.object({ code: z.string().min(1), state: z.string().min(1) }).parse(req.query);
+    const oauthSession = verifyGoogleAuthorization(req.cookies?.[GOOGLE_OAUTH_COOKIE], state);
+    const googleUser = await exchangeGoogleAuthorizationCode(code, oauthSession.verifier);
+    const school = (await query<{ id: number }>(
+      "SELECT id FROM schools WHERE school_code=$1 AND is_active=true LIMIT 1",
+      [oauthSession.schoolCode],
+    )).rows[0];
+    if (!school) {
+      clearCookie();
+      return res.redirect(frontendRedirect("/login", { oauth_error: "invalid_school" }));
+    }
+
+    const user = (await query<any>(
+      `SELECT id,school_id,full_name,email,login_id,role,is_active,must_change_password,google_subject
+       FROM users WHERE school_id=$1 AND lower(email)=$2 LIMIT 1`,
+      [school.id, googleUser.email],
+    )).rows[0];
+    if (!user) {
+      clearCookie();
+      return res.redirect(frontendRedirect("/login", { oauth_error: "account_not_registered" }));
+    }
+    if (!user.is_active) {
+      clearCookie();
+      return res.redirect(frontendRedirect("/login", { oauth_error: "account_inactive" }));
+    }
+    if (adminRoles.has(user.role)) {
+      clearCookie();
+      return res.redirect(frontendRedirect("/login", { oauth_error: "admin_password_required" }));
+    }
+    if (user.google_subject && user.google_subject !== googleUser.subject) {
+      clearCookie();
+      return res.redirect(frontendRedirect("/login", { oauth_error: "google_account_mismatch" }));
+    }
+
+    const rawExchangeCode = randomBytes(48).toString("base64url");
+    await transaction(async (client) => {
+      await client.query(
+        `UPDATE users SET google_subject=$1,google_linked_at=COALESCE(google_linked_at,NOW()),last_login_at=NOW(),failed_login_attempts=0,updated_at=NOW()
+         WHERE id=$2`,
+        [googleUser.subject, user.id],
+      );
+      await client.query("DELETE FROM oauth_login_codes WHERE expires_at<=NOW()");
+      await client.query(
+        "INSERT INTO oauth_login_codes(user_id,code_hash,expires_at) VALUES($1,$2,NOW()+interval '2 minutes')",
+        [user.id, sha256(rawExchangeCode)],
+      );
+    });
+
+    clearCookie();
+    return res.redirect(frontendRedirect("/auth/google/callback", { code: rawExchangeCode }));
+  } catch (error) {
+    clearCookie();
+    return res.redirect(frontendRedirect("/login", { oauth_error: googleErrorRedirect(error) }));
+  }
+});
+
+authRouter.post("/google/exchange", async (req, res) => {
+  const { code } = z.object({ code: z.string().min(32).max(256) }).parse(req.body);
+  const exchange = (await query<{ user_id: number }>(
+    `DELETE FROM oauth_login_codes WHERE code_hash=$1 AND expires_at>NOW()
+     RETURNING user_id`,
+    [sha256(code)],
+  )).rows[0];
+  if (!exchange) throw new ApiError(401, "Google sign-in link is invalid or expired");
+
+  const user = (await query<AuthUser>(
+    `SELECT id,school_id,full_name,email,login_id,role,is_active,must_change_password
+     FROM users WHERE id=$1 LIMIT 1`,
+    [exchange.user_id],
+  )).rows[0];
+  if (!user?.is_active || adminRoles.has(user.role)) throw new ApiError(403, "This account cannot use Google sign-in");
   res.json(await issueAuth(user, req, res));
 });
 

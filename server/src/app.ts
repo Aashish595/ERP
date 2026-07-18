@@ -92,6 +92,8 @@ export function createApp() {
 
   const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: config.NODE_ENV === "test" ? 10_000 : 50, standardHeaders: "draft-8", legacyHeaders: false });
   app.use("/auth/login", authLimiter);
+  app.use("/auth/google/start", authLimiter);
+  app.use("/auth/google/exchange", authLimiter);
   app.use("/auth/register-school", authLimiter);
   app.use("/auth/forgot-password", authLimiter);
 
