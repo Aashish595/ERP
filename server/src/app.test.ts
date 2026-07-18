@@ -20,6 +20,13 @@ describe("API infrastructure", () => {
     expect(response.body.service).toBe("express-api");
   });
 
+  it("accepts the legacy double-slash health URL", async () => {
+    const { createApp } = await import("./app.js");
+    const response = await request(createApp()).get("//health");
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe("ok");
+  });
+
   it("protects unknown application paths before disclosing route details", async () => {
     const { createApp } = await import("./app.js");
     const response = await request(createApp()).get("/does-not-exist");

@@ -7,13 +7,27 @@ import { Eye, EyeOff, GraduationCap, School, ShieldCheck } from "lucide-react";
 
 import { AuthLink, Button, Card, Input, Label } from "@/components/ui";
 import { BackendWakeupNotice } from "@/components/auth/BackendWakeupNotice";
-import { API_BASE, apiFetch, dashboardPathForRole, fileUrl, saveAuth } from "@/lib/api";
+import { apiFetch, apiUrl, dashboardPathForRole, fileUrl, saveAuth } from "@/lib/api";
 import { ensureBackendReady } from "@/lib/backendWakeup";
 import { applyBrandingTheme, cacheBrandingTheme, DEFAULT_BRANDING } from "@/lib/branding";
 import type { AuthResponse, SchoolBrandingPublic } from "@/types";
 
 type LoginMode = "user" | "admin";
+type UserPortalRole = "STUDENT" | "TEACHER" | "PARENT";
+
 const SCHOOL_CODE_KEY = "erp_last_school_code";
+const PORTAL_ROLE_KEY = "erp_last_portal_role";
+
+const USER_PORTALS: ReadonlyArray<{
+  value: UserPortalRole;
+  label: string;
+  loginLabel: string;
+  loginPlaceholder: string;
+}> = [
+  { value: "STUDENT", label: "Student", loginLabel: "Student email or admission number", loginPlaceholder: "Your email or admission number" },
+  { value: "TEACHER", label: "Teacher", loginLabel: "Teacher email or employee ID", loginPlaceholder: "Your email or employee ID" },
+  { value: "PARENT", label: "Parent", loginLabel: "Parent email or parent login ID", loginPlaceholder: "Your email or parent login ID" },
+];
 
 const oauthErrors: Record<string, string> = {
   access_denied: "Google sign-in was cancelled.",
@@ -22,6 +36,7 @@ const oauthErrors: Record<string, string> = {
   admin_password_required: "Administrator accounts must use the separate administration login.",
   google_account_mismatch: "This portal account is linked to a different Google account. Contact your institution administrator.",
   google_failed: "Google could not complete the sign-in. Please try again.",
+  incorrect_portal: "This account belongs to a different portal. Select the correct Student, Teacher, or Parent tab and try again.",
   invalid_school: "Enter a valid school or college code before using Google sign-in.",
   session_expired: "The Google sign-in session expired. Please try again.",
   temporarily_unavailable: "Google sign-in is temporarily unavailable. You can still use your password.",
@@ -48,18 +63,25 @@ export function LoginCard({ mode }: { mode: LoginMode }) {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState<boolean | null>(null);
+  const [selectedRole, setSelectedRole] = useState<UserPortalRole>("STUDENT");
   const [error, setError] = useState("");
   const [brandingPreview, setBrandingPreview] = useState<SchoolBrandingPublic | null>(null);
 
   useEffect(() => {
     const savedSchoolCode = window.localStorage.getItem(SCHOOL_CODE_KEY);
     if (savedSchoolCode) setSchoolCode(savedSchoolCode);
+    const savedRole = window.localStorage.getItem(PORTAL_ROLE_KEY);
+    if (USER_PORTALS.some((portal) => portal.value === savedRole)) setSelectedRole(savedRole as UserPortalRole);
   }, []);
 
   useEffect(() => {
     const normalized = schoolCode.trim().toUpperCase();
     if (normalized.length >= 2) window.localStorage.setItem(SCHOOL_CODE_KEY, normalized);
   }, [schoolCode]);
+
+  useEffect(() => {
+    if (!isAdmin) window.localStorage.setItem(PORTAL_ROLE_KEY, selectedRole);
+  }, [isAdmin, selectedRole]);
 
   useEffect(() => {
     if (isAdmin) return;
@@ -124,6 +146,7 @@ export function LoginCard({ mode }: { mode: LoginMode }) {
 
   const previewLogo = fileUrl(brandingPreview?.logo_url);
   const previewName = brandingPreview?.school_name || "School ERP";
+  const selectedPortal = USER_PORTALS.find((portal) => portal.value === selectedRole) ?? USER_PORTALS[0];
 
   const login = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -138,6 +161,7 @@ export function LoginCard({ mode }: { mode: LoginMode }) {
           login_id: loginId,
           password,
           portal: isAdmin ? "ADMIN" : "USER",
+          selected_role: isAdmin ? undefined : selectedRole,
         }),
       });
       saveAuth(data);
@@ -160,7 +184,9 @@ export function LoginCard({ mode }: { mode: LoginMode }) {
     try {
       if (!(await ensureBackendReady())) throw new Error("The server is still unavailable. Please retry in a moment.");
       window.localStorage.setItem(SCHOOL_CODE_KEY, code);
-      window.location.assign(`${API_BASE}/auth/google/start?school_code=${encodeURIComponent(code)}`);
+      window.localStorage.setItem(PORTAL_ROLE_KEY, selectedRole);
+      const params = new URLSearchParams({ school_code: code, selected_role: selectedRole });
+      window.location.assign(apiUrl(`/auth/google/start?${params.toString()}`));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in could not start");
       setGoogleLoading(false);
@@ -197,11 +223,26 @@ export function LoginCard({ mode }: { mode: LoginMode }) {
 
         <div className="space-y-5 p-6">
           {!isAdmin && (
-            <div className="flex flex-wrap gap-2" aria-label="Supported portals">
-              {['Student', 'Teacher', 'Parent'].map((portal, index) => (
-                <span key={portal} className={`rounded-full px-3 py-1 text-xs font-semibold ${index === 0 ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>
-                  {portal}
-                </span>
+            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Choose your portal">
+              {USER_PORTALS.map((portal) => (
+                <button
+                  key={portal.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedRole === portal.value}
+                  disabled={loading || googleLoading}
+                  onClick={() => {
+                    setSelectedRole(portal.value);
+                    setError("");
+                  }}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                    selectedRole === portal.value
+                      ? "bg-blue-100 text-blue-800"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800"
+                  }`}
+                >
+                  {portal.label}
+                </button>
               ))}
             </div>
           )}
@@ -217,8 +258,8 @@ export function LoginCard({ mode }: { mode: LoginMode }) {
               </p>
             </div>
             <div>
-              <Label>{isAdmin ? "Administrator email or login ID" : "Email, admission number, employee ID, or parent login ID"}</Label>
-              <Input value={loginId} onChange={(event) => setLoginId(event.target.value)} required placeholder={isAdmin ? "admin@school.com" : "Your registered login ID"} autoComplete="username" />
+              <Label>{isAdmin ? "Administrator email or login ID" : selectedPortal.loginLabel}</Label>
+              <Input value={loginId} onChange={(event) => setLoginId(event.target.value)} required placeholder={isAdmin ? "admin@school.com" : selectedPortal.loginPlaceholder} autoComplete="username" />
             </div>
             <div>
               <div className="flex items-center justify-between">

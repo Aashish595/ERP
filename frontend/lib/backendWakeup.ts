@@ -1,4 +1,4 @@
-import { API_BASE } from "@/lib/api";
+import { apiUrl } from "@/lib/api";
 
 export type BackendWakeupPhase = "idle" | "checking" | "waking" | "ready" | "failed";
 
@@ -29,7 +29,7 @@ async function healthCheck() {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 8_000);
   try {
-    const response = await fetch(`${API_BASE}/health`, {
+    const response = await fetch(apiUrl("/health"), {
       method: "GET",
       cache: "no-store",
       credentials: "omit",

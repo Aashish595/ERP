@@ -11,7 +11,7 @@ process.env.GOOGLE_CALLBACK_URL = "http://localhost:8000/auth/google/callback";
 describe("Google OAuth authorization", () => {
   it("creates a state-bound PKCE authorization request", async () => {
     const { createGoogleAuthorization, verifyGoogleAuthorization } = await import("./services/google-auth.service.js");
-    const authorization = createGoogleAuthorization("GVS001");
+    const authorization = createGoogleAuthorization("GVS001", "TEACHER");
     const url = new URL(authorization.authorizationUrl);
     const state = url.searchParams.get("state");
 
@@ -24,6 +24,7 @@ describe("Google OAuth authorization", () => {
 
     const verified = verifyGoogleAuthorization(authorization.cookie, state!);
     expect(verified.schoolCode).toBe("GVS001");
+    expect(verified.selectedRole).toBe("TEACHER");
     expect(verified.verifier.length).toBeGreaterThan(40);
   });
 

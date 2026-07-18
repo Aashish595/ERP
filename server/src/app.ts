@@ -47,7 +47,7 @@ export function createApp() {
   app.disable("x-powered-by");
   app.use(pinoHttp({
     autoLogging: {
-      ignore: (req: { method?: string; url?: string }) => req.url === "/health" || req.method === "OPTIONS",
+      ignore: (req: { method?: string; url?: string }) => /^\/+health(?:\?|$)/.test(req.url || "") || req.method === "OPTIONS",
     },
     redact: {
       paths: ["req.headers.authorization", "req.headers.cookie", "res.headers.set-cookie"],
@@ -97,7 +97,9 @@ export function createApp() {
   app.use("/auth/register-school", authLimiter);
   app.use("/auth/forgot-password", authLimiter);
 
-  app.get("/health", (_req, res) => res.json({ status: "ok", service: "express-api", version: "10.0.0" }));
+  // Keep the canonical endpoint at /health, while tolerating an older frontend
+  // build that accidentally joined a trailing API slash into //health.
+  app.get(/^\/+health\/?$/, (_req, res) => res.json({ status: "ok", service: "express-api", version: "10.0.0" }));
   app.get("/ready", async (_req, res) => {
     try {
       await query("SELECT 1");

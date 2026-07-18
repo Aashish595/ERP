@@ -29,6 +29,7 @@ const normalizeCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/
 const normalizeLogin = (value: string) => value.trim().toLowerCase();
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "school";
 const adminRoles = new Set(["SUPER_ADMIN", "SCHOOL_OWNER", "SCHOOL_ADMIN"]);
+const userPortalRole = z.enum(["STUDENT", "TEACHER", "PARENT"]);
 
 function frontendRedirect(path: string, params: Record<string, string>) {
   const url = new URL(path, `${config.FRONTEND_URL.replace(/\/$/, "")}/`);
@@ -204,7 +205,10 @@ authRouter.get("/google/status", (_req, res) => {
 
 authRouter.get("/google/start", async (req, res) => {
   try {
-    const { school_code: rawSchoolCode } = z.object({ school_code: z.string().min(2).max(40) }).parse(req.query);
+    const { school_code: rawSchoolCode, selected_role: selectedRole } = z.object({
+      school_code: z.string().min(2).max(40),
+      selected_role: userPortalRole.optional(),
+    }).parse(req.query);
     const schoolCode = normalizeCode(rawSchoolCode);
     const school = (await query<{ school_code: string }>(
       "SELECT school_code FROM schools WHERE school_code=$1 AND is_active=true LIMIT 1",
@@ -212,7 +216,7 @@ authRouter.get("/google/start", async (req, res) => {
     )).rows[0];
     if (!school) return res.redirect(frontendRedirect("/login", { oauth_error: "invalid_school" }));
 
-    const authorization = createGoogleAuthorization(school.school_code);
+    const authorization = createGoogleAuthorization(school.school_code, selectedRole);
     res.cookie(GOOGLE_OAUTH_COOKIE, authorization.cookie, googleOAuthCookieOptions());
     return res.redirect(authorization.authorizationUrl);
   } catch (error) {
@@ -262,6 +266,10 @@ authRouter.get("/google/callback", async (req, res) => {
     if (adminRoles.has(user.role)) {
       clearCookie();
       return res.redirect(frontendRedirect("/login", { oauth_error: "admin_password_required" }));
+    }
+    if (oauthSession.selectedRole && user.role !== oauthSession.selectedRole) {
+      clearCookie();
+      return res.redirect(frontendRedirect("/login", { oauth_error: "incorrect_portal" }));
     }
     if (user.google_subject && user.google_subject !== googleUser.subject) {
       clearCookie();

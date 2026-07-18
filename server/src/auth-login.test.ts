@@ -95,4 +95,35 @@ describe("portal-aware authentication", () => {
     expect(response.status).toBe(403);
     expect(response.body.detail).toContain("student, teacher, or parent login");
   });
+
+  it("rejects a user account opened from the wrong role tab", async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 3, school_code: "GVS001" }], rowCount: 1 })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 9,
+          school_id: 3,
+          full_name: "Student",
+          email: "student@example.com",
+          login_id: "STU001",
+          role: "STUDENT",
+          is_active: true,
+          must_change_password: false,
+          hashed_password: "hashed",
+        }],
+        rowCount: 1,
+      });
+
+    const { createApp } = await import("./app.js");
+    const response = await request(createApp()).post("/auth/login").send({
+      school_code: "GVS001",
+      login_id: "STU001",
+      password: "secret",
+      portal: "USER",
+      selected_role: "TEACHER",
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.detail).toContain("correct portal tab");
+  });
 });

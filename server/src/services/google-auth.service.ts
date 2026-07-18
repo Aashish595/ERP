@@ -11,7 +11,11 @@ type GoogleOAuthCookie = {
   state: string;
   verifier: string;
   schoolCode: string;
+  selectedRole?: UserPortalRole;
 };
+
+export type UserPortalRole = "STUDENT" | "TEACHER" | "PARENT";
+const USER_PORTAL_ROLES = new Set<UserPortalRole>(["STUDENT", "TEACHER", "PARENT"]);
 
 type GoogleTokenResponse = {
   access_token?: string;
@@ -65,7 +69,7 @@ export function googleOAuthCookieOptions() {
   };
 }
 
-export function createGoogleAuthorization(schoolCode: string) {
+export function createGoogleAuthorization(schoolCode: string, selectedRole?: UserPortalRole) {
   if (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET) {
     throw new ApiError(503, "Google sign-in has not been configured");
   }
@@ -73,7 +77,7 @@ export function createGoogleAuthorization(schoolCode: string) {
   const state = randomBytes(32).toString("base64url");
   const verifier = randomBytes(48).toString("base64url");
   const cookie = jwt.sign(
-    { type: "google_oauth", state, verifier, schoolCode } satisfies GoogleOAuthCookie,
+    { type: "google_oauth", state, verifier, schoolCode, selectedRole } satisfies GoogleOAuthCookie,
     config.JWT_SECRET,
     { algorithm: "HS256", expiresIn: "10m" },
   );
@@ -98,7 +102,13 @@ export function verifyGoogleAuthorization(cookie: string | undefined, returnedSt
 
   try {
     const payload = jwt.verify(cookie, config.JWT_SECRET, { algorithms: ["HS256"] }) as GoogleOAuthCookie;
-    if (payload.type !== "google_oauth" || !payload.verifier || !payload.schoolCode || !safeEqual(payload.state, returnedState)) {
+    if (
+      payload.type !== "google_oauth" ||
+      !payload.verifier ||
+      !payload.schoolCode ||
+      (payload.selectedRole && !USER_PORTAL_ROLES.has(payload.selectedRole)) ||
+      !safeEqual(payload.state, returnedState)
+    ) {
       throw new ApiError(400, "Google sign-in session is invalid");
     }
     return payload;

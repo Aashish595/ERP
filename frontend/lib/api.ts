@@ -1,7 +1,7 @@
 import type { AuthResponse } from "@/types";
 import { clearCachedBranding } from "@/lib/branding";
 
-const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const configuredApiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").trim();
 export const API_BASE = configuredApiBase.replace(/\/+$/, "");
 const TOKEN_KEY = "erp_access_token";
 const AUTH_KEY = "erp_auth";
@@ -188,10 +188,14 @@ export async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-function buildUrl(path: string) {
+export function apiUrl(path: string) {
   return path.startsWith("http://") || path.startsWith("https://")
     ? path
     : `${API_BASE}/${path.replace(/^\/+/, "")}`;
+}
+
+function buildUrl(path: string) {
+  return apiUrl(path);
 }
 
 function shouldRefreshNotificationsAfterWrite(path: string) {
